@@ -1,6 +1,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
+#include <stdlib.h>
 #include <avr/io.h>
 #include <avr/interrupt.h>
 #include <avr/pgmspace.h>
@@ -115,6 +116,31 @@ tune_status (struct si4735_tune_status *tune)
 	case MODE_SW: return si4735_sw_tune_status(tune);
 	default     : return false;
 	};
+}
+
+static bool
+freq_set (uint16_t freq)
+{
+	switch (state.mode) {
+	case MODE_FM: return si4735_fm_freq_set(freq, false, false);
+	case MODE_AM: return si4735_am_freq_set(freq, false);
+	case MODE_SW: return si4735_sw_freq_set(freq, false);
+	default     : return false;
+	};
+}
+
+static bool
+freq_nudge (bool up)
+{
+	uint16_t freq;
+
+	if (state.tune.freq == 0)
+		return false;
+
+	freq = (up) ? state.tune.freq + 1
+	            : state.tune.freq - 1;
+
+	return freq_set(freq);
 }
 
 static bool
@@ -266,12 +292,12 @@ seek_status (void)
 	TIMSK0 = 0;
 }
 
+static const char PROGMEM up[] = "up";
+static const char PROGMEM dn[] = "down";
+
 static bool
 cmd_seek (const char *cmd, const char *line, bool help)
 {
-	static const char PROGMEM up[] = "up";
-	static const char PROGMEM dn[] = "down";
-
 	static const struct {
 		const char	*cmd;
 		uint8_t		 len;
@@ -306,16 +332,29 @@ cmd_seek (const char *cmd, const char *line, bool help)
 static bool
 cmd_tune (const char *cmd, const char *line, bool help)
 {
+	int freq;
+
 	// Only valid in powerup mode:
 	if (state.mode == MODE_DOWN)
 		return false;
 
 	if (help) {
-		uart_printf("%s\n", cmd);
+		uart_printf("%s [ %p | %p | freq]\n", up, dn, cmd);
 		return true;
 	}
 
-	return false;
+	// Check if we can match any of the named arguments:
+	if (!strncasecmp_P(line, up, sizeof(up)))
+		return freq_nudge(true);
+
+	if (!strncasecmp_P(line, dn, sizeof(dn)))
+		return freq_nudge(false);
+
+	// Primitive conversion:
+	if ((freq = atoi(line)) <= 0)
+		return false;
+
+	return freq_set(freq);
 }
 
 // Need to forward-declare this one:
@@ -365,7 +404,7 @@ prompt (void)
 		[MODE_SW] = "sw %u > ",
 	};
 
-	(state.tune.freq)
+	(tune_status(&state.tune) && state.tune.freq)
 		? uart_printf_P(prompt_freq[state.mode], state.tune.freq)
 		: uart_printf_P(prompt_none[state.mode]);
 }
