@@ -206,6 +206,9 @@ seek_status (void)
 	TCCR0B = _BV(CS02) | _BV(CS00);
 	TIMSK0 = _BV(TOIE0);
 
+	// Clear End-of-Text flag (Ctrl-C) by reading it:
+	uart_flag_etx();
+
 	// Loop until we found a station:
 	for (;;)
 	{
@@ -230,6 +233,13 @@ seek_status (void)
 			first = false;
 
 		uart_printf("%u ", state.tune.freq);
+
+		// Quit on End-of-Text (Ctrl-C):
+		if (uart_flag_etx()) {
+			static const char PROGMEM fmt[] = "\rInterrupted.\n";
+			uart_printf_P(fmt);
+			break;
+		}
 
 		// If STCINT flag is not set, seek has not finished:
 		if (!(state.tune.status & 0x01))

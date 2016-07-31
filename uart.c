@@ -10,6 +10,7 @@
 #define BAUD_PRESCALE	((F_CPU / (BAUDRATE * 8UL)) - 1)
 
 struct uart_fifo rx, tx;
+static bool flag_etx = false;
 
 ISR (USART_UDRE_vect, ISR_BLOCK)
 {
@@ -32,11 +33,31 @@ ISR (USART_RX_vect, ISR_BLOCK)
 		return;
 	}
 
+	// Get character:
+	uint8_t ch = UDR0;
+
+	// If it's an End-of-Text (Ctrl-C), handle out of band by setting flag:
+	if (ch == 0x03) {
+		flag_etx = true;
+		return;
+	}
+
 	// Put character into Rx FIFO:
 	uint8_t next = (rx.head + 1) % UART_FIFOSIZE;
-	rx.fifo[rx.head] = UDR0;
+	rx.fifo[rx.head] = ch;
 	if (next != rx.tail)
 		rx.head = next;
+}
+
+bool
+uart_flag_etx (void)
+{
+	// Get and reset End-of-Text (Ctrl-C) flag:
+	if (flag_etx) {
+		flag_etx = false;
+		return true;
+	}
+	return false;
 }
 
 void
