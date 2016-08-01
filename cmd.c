@@ -241,25 +241,25 @@ seek_status (void)
 			break;
 		}
 
-		// If STCINT flag is not set, seek has not finished:
-		if (!(state.tune.status & 0x01))
-			continue;
+		// If STCINT flag is set, seek has finished:
+		if (state.tune.status & 0x01) {
 
-		// Exit loop if we found a valid station:
-		if (state.tune.flags & 0x01) {
-			static const char PROGMEM fmt[] =
-				"\rValid station: %u, rssi: %u, snr: %u\n";
-			uart_printf_P(fmt, state.tune.freq, state.tune.rssi, state.tune.snr);
+			// Check if we found a valid station:
+			if (state.tune.flags & 0x01) {
+				static const char PROGMEM fmt[] =
+					"\rValid station: %u, rssi: %u, snr: %u\n";
+				uart_printf_P(fmt, state.tune.freq, state.tune.rssi, state.tune.snr);
+			}
+
+			// Check if we wrapped:
+			if (state.tune.flags & 0x80) {
+				static const char PROGMEM fmt[] =
+					"\rWrapped: %u, rssi: %u, snr: %u\n";
+				uart_printf_P(fmt, state.tune.freq, state.tune.rssi, state.tune.snr);
+			}
+
+			break;
 		}
-
-		// Exit loop if we wrapped:
-		if (state.tune.flags & 0x80) {
-			static const char PROGMEM fmt[] =
-				"\rWrapped: %u, rssi: %u, snr: %u\n";
-			uart_printf_P(fmt, state.tune.freq, state.tune.rssi, state.tune.snr);
-		}
-
-		break;
 	}
 
 	// Disable interrupt:
