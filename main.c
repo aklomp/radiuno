@@ -22,6 +22,7 @@ main (void)
 	for (;;)
 	{
 		// Go to sleep, let interrupts wake us:
+		set_sleep_mode(SLEEP_MODE_IDLE);
 		sleep_enable();
 		sleep_cpu();
 		sleep_disable();
