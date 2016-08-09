@@ -339,7 +339,7 @@ cmd_tune (const char *cmd, const char *line, bool help)
 		return false;
 
 	if (help) {
-		uart_printf("%s [ %p | %p | freq]\n", up, dn, cmd);
+		uart_printf("%s [ %p | %p | <freq> ]\n", cmd, up, dn);
 		return true;
 	}
 
