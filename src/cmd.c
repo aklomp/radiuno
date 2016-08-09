@@ -9,6 +9,7 @@
 
 #include "args.h"
 #include "cmd.h"
+#include "cmd_prop_fm.h"
 #include "si4735.h"
 #include "uart.h"
 
@@ -265,6 +266,26 @@ cmd_info (struct args *args, bool help)
 	return true;
 }
 
+static bool
+cmd_prop_get (uint8_t argc, const char **argv, bool help)
+{
+	// Only FM mode implemented:
+	if (state.mode == MODE_FM)
+		return cmd_prop_fm(argc, argv, true, help);
+
+	return false;
+}
+
+static bool
+cmd_prop_set (uint8_t argc, const char **argv, bool help)
+{
+	// Only FM mode implemented:
+	if (state.mode == MODE_FM)
+		return cmd_prop_fm(argc, argv, false, help);
+
+	return false;
+}
+
 static void
 seek_status (void)
 {
@@ -428,6 +449,8 @@ static const struct {
 	bool (* handler) (struct args *, bool);
 }
 map[] = {
+	{ "get",  cmd_prop_get },
+	{ "set",  cmd_prop_set },
 	{ "help", cmd_help },
 	{ "info", cmd_info },
 	{ "mode", cmd_mode },
