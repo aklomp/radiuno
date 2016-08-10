@@ -139,7 +139,7 @@ next_char (enum keytype *type, uint8_t *val)
 }
 
 // Take characters from the Rx FIFO and create a line
-const uint8_t *
+uint8_t *
 readline (void)
 {
 	enum keytype	type;

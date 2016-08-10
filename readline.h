@@ -1,1 +1,1 @@
-const uint8_t *readline (void);
+uint8_t *readline (void);

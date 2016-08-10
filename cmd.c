@@ -41,15 +41,6 @@ ISR (TIMER0_OVF_vect)
 	}
 }
 
-static const char *
-skip_whitespace (const char *line)
-{
-	while (*line && (*line == ' ' || *line == '\t'))
-		line++;
-
-	return line;
-}
-
 static void
 print_help (const char *cmd, const void *map, uint8_t count, uint8_t stride)
 {
@@ -144,7 +135,7 @@ freq_nudge (bool up)
 }
 
 static bool
-cmd_mode (const char *cmd, const char *line, bool help)
+cmd_mode (uint8_t argc, const char **argv, bool help)
 {
 	static const char PROGMEM sub[][3] = { "fm", "am", "sw" };
 
@@ -158,9 +149,15 @@ cmd_mode (const char *cmd, const char *line, bool help)
 		{ sub[2], MODE_SW },
 	};
 
+	// Handle help function and insufficient args:
+	if (help || argc < 2) {
+		print_help(argv[0], map, COUNT(map), STRIDE(map));
+		return help;
+	}
+
 	// Handle subcommands:
-	for (uint8_t i = 0; !help && i < COUNT(map); i++) {
-		if (strncasecmp_P(line, map[i].cmd, 2))
+	for (uint8_t i = 0; i < COUNT(map); i++) {
+		if (strncasecmp_P(argv[1], map[i].cmd, 2))
 			continue;
 
 		// If already in desired mode, ignore:
@@ -190,13 +187,11 @@ cmd_mode (const char *cmd, const char *line, bool help)
 		return true;
 	}
 
-	// Fallthrough: help function:
-	print_help(cmd, map, COUNT(map), STRIDE(map));
-	return help;
+	return false;
 }
 
 static bool
-cmd_info (const char *cmd, const char *line, bool help)
+cmd_info (uint8_t argc, const char **argv, bool help)
 {
 	static const char PROGMEM str[] =
 		"flags : %x\n"
@@ -209,7 +204,7 @@ cmd_info (const char *cmd, const char *line, bool help)
 		return false;
 
 	if (help) {
-		uart_printf("%s\n", cmd);
+		uart_printf("%s\n", argv[0]);
 		return true;
 	}
 
@@ -296,7 +291,7 @@ static const char PROGMEM up[] = "up";
 static const char PROGMEM dn[] = "down";
 
 static bool
-cmd_seek (const char *cmd, const char *line, bool help)
+cmd_seek (uint8_t argc, const char **argv, bool help)
 {
 	static const struct {
 		const char	*cmd;
@@ -312,9 +307,15 @@ cmd_seek (const char *cmd, const char *line, bool help)
 	if (state.mode == MODE_DOWN)
 		return false;
 
+	// Handle help function and insufficient args:
+	if (help || argc < 2) {
+		print_help(argv[0], map, COUNT(map), STRIDE(map));
+		return help;
+	}
+
 	// Handle subcommands:
 	for (uint8_t i = 0; !help && i < COUNT(map); i++) {
-		if (strncasecmp_P(line, map[i].cmd, map[i].len))
+		if (strncasecmp_P(argv[1], map[i].cmd, map[i].len))
 			continue;
 
 		if (!seek_start(map[i].up, true))
@@ -324,13 +325,11 @@ cmd_seek (const char *cmd, const char *line, bool help)
 		return true;
 	}
 
-	// Fallthrough: help function:
-	print_help(cmd, map, COUNT(map), STRIDE(map));
-	return help;
+	return false;
 }
 
 static bool
-cmd_tune (const char *cmd, const char *line, bool help)
+cmd_tune (uint8_t argc, const char **argv, bool help)
 {
 	int freq;
 
@@ -338,32 +337,33 @@ cmd_tune (const char *cmd, const char *line, bool help)
 	if (state.mode == MODE_DOWN)
 		return false;
 
-	if (help) {
-		uart_printf("%s [ %p | %p | <freq> ]\n", cmd, up, dn);
-		return true;
+	// Handle help function and insufficient args:
+	if (help || argc < 2) {
+		uart_printf("%s [ %p | %p | <freq> ]\n", argv[0], up, dn);
+		return help;
 	}
 
 	// Check if we can match any of the named arguments:
-	if (!strncasecmp_P(line, up, sizeof(up)))
+	if (!strncasecmp_P(argv[1], up, sizeof(up)))
 		return freq_nudge(true);
 
-	if (!strncasecmp_P(line, dn, sizeof(dn)))
+	if (!strncasecmp_P(argv[1], dn, sizeof(dn)))
 		return freq_nudge(false);
 
 	// Primitive conversion:
-	if ((freq = atoi(line)) <= 0)
+	if ((freq = atoi(argv[1])) <= 0)
 		return false;
 
 	return freq_set(freq);
 }
 
 // Need to forward-declare this one:
-static bool cmd_help (const char *, const char *, bool);
+static bool cmd_help (uint8_t, const char **, bool);
 
 // Toplevel command table:
 static const struct {
 	const char *cmd;
-	bool (* handler) (const char *, const char *, bool);
+	bool (* handler) (uint8_t, const char *[], bool);
 }
 map[] = {
 	{ "help", cmd_help },
@@ -374,16 +374,18 @@ map[] = {
 };
 
 static bool
-cmd_help (const char *cmd, const char *line, bool help)
+cmd_help (uint8_t argc, const char **argv, bool help)
 {
 	if (help) {
-		uart_printf("%s\n", cmd);
+		uart_printf("%s\n", argv[0]);
 		return true;
 	}
 
 	// Call all toplevel handlers in help mode:
-	for (uint8_t i = 0; i < COUNT(map); i++)
-		map[i].handler(map[i].cmd, skip_whitespace(line + strlen(cmd)), true);
+	for (uint8_t i = 0; i < COUNT(map); i++) {
+		argv[0] = map[i].cmd;
+		map[i].handler(argc, argv, true);
+	}
 
 	return true;
 }
@@ -411,9 +413,13 @@ prompt (void)
 
 // Parse a zero-terminated commandline
 void
-cmd (const char *line)
+cmd (char *line)
 {
+	static const char PROGMEM whitespace[] = " \t\f\v";
 	static const char PROGMEM failed[] = "failed\n";
+	uint8_t argc = 0;
+	const char *argv[5];
+	char *c = line;
 
 	if (!line)
 		return;
@@ -421,14 +427,35 @@ cmd (const char *line)
 	// Start on new line:
 	uart_printf("\n");
 
-	// Skip whitespace at start:
-	line = skip_whitespace(line);
+	// Tokenize:
+	while (argc < COUNT(argv)) {
+
+		// Skip consecutive whitespace:
+		while (strpbrk_P(c, whitespace) == c)
+			*c++ = '\0';
+
+		// Quit if we reached the end of the string:
+		if (*c == '\0')
+			break;
+
+		// Current character starts a token:
+		argv[argc++] = c++;
+
+		// Find next whitespace if it exists:
+		if ((c = strpbrk_P(c, whitespace)) == NULL)
+			break;
+	}
 
 	// Try to match a command:
-	for (uint8_t i = 0; i < COUNT(map); i++)
-		if (strncasecmp(line, map[i].cmd, strlen(map[i].cmd)) == 0)
-			if (!map[i].handler(map[i].cmd, skip_whitespace(line + strlen(map[i].cmd)), false))
+	for (uint8_t i = 0; argc && i < COUNT(map); i++) {
+		if (strcasecmp(argv[0], map[i].cmd) == 0) {
+			argv[0] = map[i].cmd;
+			if (!map[i].handler(argc, argv, false)) {
 				uart_printf_P(failed);
+			}
+			break;
+		}
+	}
 
 	prompt();
 }
@@ -455,8 +482,8 @@ cmd_init (void)
 {
 	banner();
 
-	if (cmd_mode(NULL, "fm", false))
-	       cmd_seek(NULL, "up", false);
+	if (cmd_mode(2, ((const char *[]) { NULL, "fm" }), false))
+	       cmd_seek(2, ((const char *[]) { NULL, "up" }), false);
 
 	prompt();
 }
