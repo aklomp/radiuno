@@ -15,6 +15,7 @@ prop_fm_deemphasis (uint8_t argc, const char **argv, bool get, bool help)
 	uint16_t val;
 	uint16_t prop = 0x1100;
 	static const char PROGMEM str[] = "FM_DEEMPHASIS";
+	static const char PROGMEM arg[][13] = { "50 us, world", "75 us, USA" };
 
 	// Handle help:
 	if (help)
@@ -28,7 +29,7 @@ prop_fm_deemphasis (uint8_t argc, const char **argv, bool get, bool help)
 	if (get) {
 		uart_printf("%p: ", str);
 		if (si4735_prop_get(prop, &val)) {
-			uart_printf("%u\n", val);
+			uart_printf("%u (%p)\n", val, arg[val - 1]);
 			return true;
 		}
 		return false;
@@ -38,8 +39,8 @@ prop_fm_deemphasis (uint8_t argc, const char **argv, bool get, bool help)
 	if (argc != 2)
 		goto help;
 
-	// Get value, check against max:
-	if ((val = atoi(argv[1])) > 3)
+	// Get value, check against min and max:
+	if ((val = atoi(argv[1])) < 1 || val > 2)
 		goto help;
 
 	// Set the property:
@@ -51,7 +52,8 @@ help:	if (get) {
 	}
 	else {
 		uart_printf("  %p\n", str);
-		// Print range
+		uart_printf("    1: %p\n", arg[0]);
+		uart_printf("    2: %p\n", arg[1]);
 	}
 	return true;
 }
