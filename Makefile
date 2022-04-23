@@ -1,14 +1,13 @@
-CROSS	= /opt/cross/avr/bin/avr-
-CC	= $(CROSS)gcc
-LD	= $(CROSS)ld
-OBJCOPY	= $(CROSS)objcopy
-OBJDUMP	= $(CROSS)objdump
-AVRDUDE	= avrdude
+CROSS	?= avr-
+CC	 = $(CROSS)gcc
+LD	 = $(CROSS)ld
+OBJCOPY	 = $(CROSS)objcopy
+AVRDUDE	 = avrdude
 
-MCU	= atmega328p
-F_CPU	= 16000000
+MCU	 = atmega328p
+F_CPU	 = 16000000
 
-TARGET	= main
+TARGET	 = radiuno
 
 COMMON_FLAGS = -Os -std=c99 -DF_CPU=$(F_CPU)UL -mmcu=$(MCU)
 
@@ -19,8 +18,8 @@ CFLAGS	+= -Wall -Wstrict-prototypes -Wa,-adhlns=$(<:.c=.lst)
 LDFLAGS	 = $(COMMON_FLAGS)
 LDFLAGS	+= -Wl,-Map=$(TARGET).map,--cref
 
-SRCS	= $(wildcard *.c)
-OBJS	= $(SRCS:.c=.o)
+SRCS	 = $(wildcard src/*.c)
+OBJS	 = $(SRCS:.c=.o)
 
 .PHONY: clean flash
 
