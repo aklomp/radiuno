@@ -9,6 +9,8 @@ ______          _ _
 
 # Radiuno
 
+[![Build](https://github.com/aklomp/radiuno/actions/workflows/build.yml/badge.svg)](https://github.com/aklomp/radiuno/actions/workflows/build.yml)
+
 A bare-metal commandline server for the Arduino Uno + [SparkFun si4735
 shield](https://www.sparkfun.com/products/retired/10342), written virtually
 from scratch in C99. It was developed and tested on a genuine Arduino Uno, but
