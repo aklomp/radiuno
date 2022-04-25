@@ -14,3 +14,18 @@ jobs:
         sudo apt-get install avr-libc
     - name: Compile
       run: make
+    - name: Release version
+      id: get-version
+      if: startsWith(github.ref, 'refs/tags/v')
+      run: |
+        version=$(echo "${{github.ref_name}}" | sed 's/^v//')
+        echo "::set-output name=version::${version}"
+    - name: Release
+      uses: softprops/action-gh-release@v1
+      if: startsWith(github.ref, 'refs/tags/v')
+      with:
+        name: radiuno-${{steps.get-version.outputs.version}}
+        files: |
+          radiuno.elf
+          radiuno.hex
+          radiuno.map
