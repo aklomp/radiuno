@@ -123,12 +123,28 @@ tune_status (struct si4735_tune_status *tune)
 static bool
 freq_set (uint16_t freq)
 {
+	bool ret;
+
 	switch (state.mode) {
-	case MODE_FM: return si4735_fm_freq_set(freq, false, false);
-	case MODE_AM: return si4735_am_freq_set(freq, false);
-	case MODE_SW: return si4735_sw_freq_set(freq, false);
+	case MODE_FM: ret = si4735_fm_freq_set(freq, false, false); break;
+	case MODE_AM: ret = si4735_am_freq_set(freq, false); break;
+	case MODE_SW: ret = si4735_sw_freq_set(freq, false); break;
 	default     : return false;
 	}
+
+	// If the command was successful, wait for STCINT to become set,
+	// indicating that the chip has settled on a frequency.
+	while (ret) {
+		if (!tune_status(&state.tune)) {
+			ret = false;
+			break;
+		}
+
+		if (state.tune.status & 0x01)
+			break;
+	}
+
+	return ret;
 }
 
 static bool
