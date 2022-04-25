@@ -9,7 +9,8 @@ F_CPU	 = 16000000
 
 TARGET	 = radiuno
 
-COMMON_FLAGS = -Os -std=c99 -DF_CPU=$(F_CPU)UL -mmcu=$(MCU)
+COMMON_FLAGS  = -Os -std=c99 -g
+COMMON_FLAGS += -DF_CPU=$(F_CPU)UL -mmcu=$(MCU)
 
 CFLAGS	 = $(COMMON_FLAGS)
 CFLAGS	+= -funsigned-char -funsigned-bitfields -fpack-struct -fshort-enums
