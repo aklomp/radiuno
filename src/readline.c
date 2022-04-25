@@ -38,9 +38,12 @@ static const uint8_t key_arrowup[]	= { 0x1B, 0x5B, 0x41		};
 static const uint8_t key_arrowdn[]	= { 0x1B, 0x5B, 0x42		};
 static const uint8_t key_arrowrt[]	= { 0x1B, 0x5B, 0x43		};
 static const uint8_t key_arrowlt[]	= { 0x1B, 0x5B, 0x44		};
+static const uint8_t key_bksp_del[]	= { 0x7F			};
 
 // Table of special keys. We could store this in PROGMEM, but we don't,
 // because the code to retrieve the data is much larger than the savings.
+// Scancode 127 (DEL) is deliberately remapped to BKSP. Some terminals will
+// send DEL instead of BKSP and vice versa, so treat them as aliases.
 static const struct key {
 	const uint8_t	*code;
 	uint8_t		 len;
@@ -58,6 +61,7 @@ keys[] = {
 	{ key_arrowdn,	sizeof(key_arrowdn),	KEY_ARROWDN	},
 	{ key_arrowrt,	sizeof(key_arrowrt),	KEY_ARROWRT	},
 	{ key_arrowlt,	sizeof(key_arrowlt),	KEY_ARROWLT	},
+	{ key_bksp_del,	sizeof(key_bksp_del),	KEY_BKSP	},
 };
 
 static bool
