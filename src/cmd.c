@@ -84,7 +84,7 @@ power_up (const enum mode mode)
 	case MODE_AM: return si4735_am_power_up();
 	case MODE_SW: return si4735_sw_power_up();
 	default     : return false;
-	};
+	}
 }
 
 static bool
@@ -95,7 +95,18 @@ seek_start (const bool up, const bool wrap)
 	case MODE_AM: return si4735_am_seek_start(up, wrap);
 	case MODE_SW: return si4735_sw_seek_start(up, wrap);
 	default     : return false;
-	};
+	}
+}
+
+static bool
+seek_cancel (void)
+{
+	switch (state.mode) {
+	case MODE_FM: return si4735_fm_seek_cancel();
+	case MODE_AM: return si4735_am_seek_cancel();
+	case MODE_SW: return si4735_sw_seek_cancel();
+	default     : return false;
+	}
 }
 
 static bool
@@ -106,18 +117,34 @@ tune_status (struct si4735_tune_status *tune)
 	case MODE_AM: return si4735_am_tune_status(tune);
 	case MODE_SW: return si4735_sw_tune_status(tune);
 	default     : return false;
-	};
+	}
 }
 
 static bool
 freq_set (uint16_t freq)
 {
+	bool ret;
+
 	switch (state.mode) {
-	case MODE_FM: return si4735_fm_freq_set(freq, false, false);
-	case MODE_AM: return si4735_am_freq_set(freq, false);
-	case MODE_SW: return si4735_sw_freq_set(freq, false);
+	case MODE_FM: ret = si4735_fm_freq_set(freq, false, false); break;
+	case MODE_AM: ret = si4735_am_freq_set(freq, false); break;
+	case MODE_SW: ret = si4735_sw_freq_set(freq, false); break;
 	default     : return false;
-	};
+	}
+
+	// If the command was successful, wait for STCINT to become set,
+	// indicating that the chip has settled on a frequency.
+	while (ret) {
+		if (!tune_status(&state.tune)) {
+			ret = false;
+			break;
+		}
+
+		if (state.tune.status & 0x01)
+			break;
+	}
+
+	return ret;
 }
 
 static bool
@@ -257,8 +284,22 @@ seek_status (void)
 
 		// Quit on End-of-Text (Ctrl-C):
 		if (uart_flag_etx()) {
-			static const char PROGMEM fmt[] = "\rInterrupted.\n";
-			uart_printf_P(fmt);
+			static const char PROGMEM fmt_success[] = "\r\n";
+			static const char PROGMEM fmt_failure[] = "\rSeek: failed to cancel.\n";
+
+			// Cancel the seek.
+			if (!seek_cancel()) {
+				uart_printf_P(fmt_failure);
+				continue;
+			}
+
+			// Wait for STCINT to become set, indicating that the
+			// chip stopped seeking and has settled on a station.
+			while (!(state.tune.status & 0x01))
+				if (!tune_status(&state.tune))
+					break;
+
+			uart_printf_P(fmt_success);
 			break;
 		}
 
