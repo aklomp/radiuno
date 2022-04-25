@@ -34,7 +34,7 @@ $(TARGET).elf: $(OBJS)
 
 flash: $(TARGET).hex
 	$(AVRDUDE) -F -c arduino -p $(MCU) -P /dev/ttyACM0 -b 115200 -U flash:w:$(TARGET).hex
-	minicom -D /dev/ttyACM0 -b 115200
+	picocom -b 115200 /dev/ttyACM0
 
 clean:
 	$(RM) $(OBJS) $(TARGET).hex $(TARGET).elf *.lst *.map *.d
