@@ -18,8 +18,11 @@
 #define CMD_READ_SHORT	0xA0
 #define CMD_READ_LONG	0xE0
 
-// Byte fiddling:
-#define BSWAP(n)	(n) = __builtin_bswap16(n)
+static inline void
+bswap16 (uint16_t *n)
+{
+	*n = __builtin_bswap16(*n);
+}
 
 static inline void
 slave_select (void)
@@ -235,7 +238,7 @@ si4735_fm_tune_status (struct si4735_tune_status *buf)
 	if (!tune_status(true, buf, sizeof(*buf), false))
 		return false;
 
-	BSWAP(buf->freq);
+	bswap16(&buf->freq);
 	return true;
 }
 
@@ -245,7 +248,8 @@ si4735_am_tune_status (struct si4735_tune_status *buf)
 	if (!tune_status(false, buf, sizeof(*buf), false))
 		return false;
 
-	BSWAP(buf->freq);
+	bswap16(&buf->freq);
+	bswap16(&buf->am.readantcap);
 	return true;
 }
 
@@ -391,7 +395,7 @@ si4735_rev_get (struct si4735_rev *buf)
 	if (!read_long((uint8_t *)buf, sizeof(*buf)))
 		return false;
 
-	BSWAP(buf->patch_id);
+	bswap16(&buf->patch_id);
 	return true;
 }
 

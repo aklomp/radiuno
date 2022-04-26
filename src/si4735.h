@@ -15,6 +15,15 @@ struct si4735_tune_status {
 	uint16_t freq;
 	uint8_t  rssi;
 	uint8_t  snr;
+	union {
+		struct {
+			uint8_t mult;
+			uint8_t readantcap;
+		} fm;
+		struct {
+			uint16_t readantcap;
+		} am;
+	};
 };
 
 struct si4735_rsq_status {

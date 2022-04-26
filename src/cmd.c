@@ -221,10 +221,17 @@ static bool
 cmd_info (uint8_t argc, const char **argv, bool help)
 {
 	static const char PROGMEM str[] =
-		"flags : %x\n"
-		"freq  : %u\n"
-		"rssi  : %d\n"
-		"snr   : %u\n";
+		"flags      : %s%s%s\n"
+		"freq       : %u\n"
+		"rssi       : %d\n"
+		"snr        : %u\n";
+
+	static const char PROGMEM str_fm[] =
+		"multipath  : %u\n"
+		"readantcap : %u\n";
+
+	static const char PROGMEM str_am[] =
+		"readantcap : %u\n";
 
 	// Only valid in powerup state:
 	if (state.mode == MODE_DOWN)
@@ -239,8 +246,20 @@ cmd_info (uint8_t argc, const char **argv, bool help)
 	if (!tune_status(&state.tune))
 		return false;
 
-	// Print:
-	uart_printf_P(str, state.tune.flags, state.tune.freq, state.tune.rssi, state.tune.snr);
+	// Print generic info.
+	uart_printf_P(str,
+		state.tune.flags & (1 << 7) ? "[Band limit] " : "",
+		state.tune.flags & (1 << 1) ? "[AFC rail] " : "",
+		state.tune.flags & (1 << 0) ? "[Valid]" : "",
+		state.tune.freq, state.tune.rssi, state.tune.snr);
+
+	// Print band-specific info.
+	if (state.mode == MODE_FM) {
+		uart_printf_P(str_fm, state.tune.fm.mult, state.tune.fm.readantcap);
+	} else {
+		uart_printf_P(str_am, state.tune.am.readantcap);
+	}
+
 	return true;
 }
 
