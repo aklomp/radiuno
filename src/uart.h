@@ -1,3 +1,6 @@
+#include <stdbool.h>
+#include <stdint.h>
+
 #define UART_FIFOSIZE	32
 
 struct uart_fifo {

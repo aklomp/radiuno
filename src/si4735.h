@@ -1,3 +1,6 @@
+#include <stdbool.h>
+#include <stdint.h>
+
 struct si4735_rev {
 	uint8_t  status;
 	uint8_t  part_number;
