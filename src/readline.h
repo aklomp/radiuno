@@ -1,1 +1,1 @@
-uint8_t *readline (void);
+char *readline (void);

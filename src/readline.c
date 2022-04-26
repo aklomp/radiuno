@@ -8,10 +8,13 @@
 #define LINESIZE	40
 
 // Double-buffered line buffer.
-static uint8_t line[2U][LINESIZE], llen, lpos, lbuf;
+static char line[2U][LINESIZE];
+
+// Line metadata: total length, cursor position, double buffer index.
+static uint8_t llen, lpos, lbuf;
 
 // Writable output buffer that is returned to the caller.
-static uint8_t outbuf[LINESIZE];
+static char outbuf[LINESIZE];
 
 // Keys we distinguish:
 enum keytype {
@@ -145,8 +148,8 @@ next_char (enum keytype *type, uint8_t *val)
 	return false;
 }
 
-// Take characters from the Rx FIFO and create a line
-uint8_t *
+// Take characters from the Rx FIFO and create a line.
+char *
 readline (void)
 {
 	enum keytype	type;
