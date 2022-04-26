@@ -8,14 +8,20 @@
 
 #define BAUDRATE	115200
 #define BAUD_PRESCALE	((F_CPU / (BAUDRATE * 8UL)) - 1)
+#define FIFOSIZE	32
 
-struct uart_fifo rx, tx;
+static struct fifo {
+	uint8_t fifo[FIFOSIZE];
+	uint8_t tail;
+	uint8_t head;
+} rx, tx;
+
 static bool flag_etx = false;
 
 static inline uint8_t
 fifo_inc (uint8_t i)
 {
-	return ++i == UART_FIFOSIZE ? 0 : i;
+	return ++i == FIFOSIZE ? 0 : i;
 }
 
 ISR (USART_UDRE_vect, ISR_BLOCK)

@@ -1,6 +1,4 @@
-#include <stdbool.h>
 #include <avr/interrupt.h>
-#include <avr/sleep.h>
 
 #include "cmd.h"
 #include "readline.h"
@@ -10,24 +8,18 @@
 int
 main (void)
 {
-	// Enable interrupts:
+	// Enable interrupts.
 	sei();
 
-	// Initialize:
+	// Initialize.
 	uart_init();
 	si4735_init();
 	cmd_init();
 
-	// Main loop:
+	// Main loop.
 	for (;;)
 	{
-		// Go to sleep, let interrupts wake us:
-		set_sleep_mode(SLEEP_MODE_IDLE);
-		sleep_enable();
-		sleep_cpu();
-		sleep_disable();
-
-		// Get a line of input and feed to command parser:
+		// Get a line of input and feed it to the command parser.
 		cmd(readline());
 	}
 
