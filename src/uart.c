@@ -1,4 +1,3 @@
-#include <stdbool.h>
 #include <stdarg.h>
 #include <avr/io.h>
 #include <avr/interrupt.h>

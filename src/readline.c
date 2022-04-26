@@ -1,7 +1,7 @@
 #include <stdbool.h>
-#include <stdint.h>
 #include <stddef.h>
 
+#include "readline.h"
 #include "uart.h"
 
 // Size of the line buffer:
