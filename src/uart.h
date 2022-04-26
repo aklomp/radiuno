@@ -16,6 +16,7 @@ extern void uart_printf_P (const char *restrict format, ...) __attribute__ ((for
 extern bool uart_process (void);
 extern const uint8_t *uart_line (void);
 extern bool uart_flag_etx (void);
+extern uint8_t uart_getchar (void);
 
 // Rx FIFO is global:
 extern struct uart_fifo rx;

@@ -2,6 +2,7 @@
 #include <avr/io.h>
 #include <avr/interrupt.h>
 #include <avr/pgmspace.h>
+#include <avr/sleep.h>
 
 #include "uart.h"
 
@@ -10,6 +11,12 @@
 
 struct uart_fifo rx, tx;
 static bool flag_etx = false;
+
+static inline uint8_t
+fifo_inc (uint8_t i)
+{
+	return ++i == UART_FIFOSIZE ? 0 : i;
+}
 
 ISR (USART_UDRE_vect, ISR_BLOCK)
 {
@@ -21,7 +28,7 @@ ISR (USART_UDRE_vect, ISR_BLOCK)
 
 	// Else feed data to the buffer:
 	UDR0 = tx.fifo[tx.tail];
-	tx.tail = (tx.tail + 1) % UART_FIFOSIZE;
+	tx.tail = fifo_inc(tx.tail);
 }
 
 ISR (USART_RX_vect, ISR_BLOCK)
@@ -41,11 +48,39 @@ ISR (USART_RX_vect, ISR_BLOCK)
 		return;
 	}
 
-	// Put character into Rx FIFO:
-	uint8_t next = (rx.head + 1) % UART_FIFOSIZE;
+	// Put the character into the Rx FIFO.
+	const uint8_t next = fifo_inc(rx.head);
 	rx.fifo[rx.head] = ch;
 	if (next != rx.tail)
 		rx.head = next;
+}
+
+// Return the next character in the Rx FIFO; may block.
+uint8_t
+uart_getchar (void)
+{
+	for (;;) {
+
+		// Clear interrupts to check the fifo contents.
+		cli();
+
+		// Return if a character is available in the fifo.
+		if (rx.head != rx.tail) {
+			const uint8_t c = rx.fifo[rx.tail];
+			rx.tail = fifo_inc(rx.tail);
+			sei();
+			return c;
+		}
+
+		// Sleep until woken by an interrupt. According to
+		// <avr/sleep.h>, the following block of code is free of race
+		// conditions and will not miss any interrupts.
+		set_sleep_mode(SLEEP_MODE_IDLE);
+		sleep_enable();
+		sei();
+		sleep_cpu();
+		sleep_disable();
+	}
 }
 
 bool
@@ -62,7 +97,7 @@ uart_flag_etx (void)
 void
 uart_putc (const uint8_t c)
 {
-	uint8_t next = (tx.head + 1) % UART_FIFOSIZE;
+	const uint8_t next = fifo_inc(tx.head);
 
 	// If the next character would coincide with the fifo's tail,
 	// wait for a character to be transmitted first:
