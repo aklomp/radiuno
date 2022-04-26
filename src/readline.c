@@ -7,8 +7,11 @@
 // Size of the line buffer:
 #define LINESIZE	40
 
-// Our line buffer:
-static uint8_t line[LINESIZE], llen, lpos;
+// Double-buffered line buffer.
+static uint8_t line[2U][LINESIZE], llen, lpos, lbuf;
+
+// Writable output buffer that is returned to the caller.
+static uint8_t outbuf[LINESIZE];
 
 // Keys we distinguish:
 enum keytype {
@@ -161,10 +164,10 @@ readline (void)
 			// If there is string to the right, move it over one place:
 			if (llen > lpos)
 				for (int8_t i = llen; i >= lpos; i--)
-					line[i + 1] = line[i];
+					line[lbuf][i + 1] = line[lbuf][i];
 
 			// Insert character:
-			line[lpos++] = val;
+			line[lbuf][lpos++] = val;
 
 			// Increase line length, if possible:
 			if (llen < LINESIZE)
@@ -172,7 +175,7 @@ readline (void)
 
 			// Paint new string:
 			for (int8_t i = lpos - 1; i < llen; i++)
-				uart_putc(line[i]);
+				uart_putc(line[lbuf][i]);
 
 			// Backtrack to current position:
 			for (int8_t i = lpos; i < llen; i++)
@@ -193,8 +196,8 @@ readline (void)
 
 			// Move characters one over to the left:
 			for (int8_t i = lpos; i < llen; i++) {
-				line[i] = line[i + 1];
-				uart_putc(line[i]);
+				line[lbuf][i] = line[lbuf][i + 1];
+				uart_putc(line[lbuf][i]);
 			}
 			uart_putc(' ');
 
@@ -205,10 +208,24 @@ readline (void)
 			break;
 
 		case KEY_ENTER:
-			// Null-terminate the line and return pointer:
-			line[llen] = '\0';
-			llen = lpos = 0;
-			return line;
+			// Zero-terminate the line, so that we can find the end
+			// if we move back to this line.
+			line[lbuf][llen] = '\0';
+
+			// Copy this null-terminated line to the output buf.
+			for (uint8_t i = 0; i <= llen; i++)
+				outbuf[i] = line[lbuf][i];
+
+			// If the line is not empty, reset the line position
+			// and swap the buffers. This saves the line to
+			// history. Empty lines are not remembered/swapped.
+			if (llen) {
+				llen = lpos = 0;
+				lbuf ^= 1;
+			}
+
+			// Return the output buffer to the caller.
+			return outbuf;
 
 		case KEY_HOME:
 			while (lpos) {
@@ -226,8 +243,8 @@ readline (void)
 
 			// Move characters one over to the left:
 			for (uint8_t i = lpos; i < llen; i++) {
-				line[i] = line[i + 1];
-				uart_putc(line[i]);
+				line[lbuf][i] = line[lbuf][i + 1];
+				uart_putc(line[lbuf][i]);
 			}
 			uart_putc(' ');
 
@@ -239,19 +256,44 @@ readline (void)
 
 		case KEY_END:
 			while (lpos < llen)
-				uart_putc(line[lpos++]);
+				uart_putc(line[lbuf][lpos++]);
 
 			break;
 
 		case KEY_PGUP:
 		case KEY_PGDN:
-		case KEY_ARROWUP:
+			break;
+
 		case KEY_ARROWDN:
+		case KEY_ARROWUP:
+			// Backtrack from the cursor to the start of the line.
+			for (uint8_t i = 0; i < lpos; i++)
+				uart_putc('\b');
+
+			// Blank the current line.
+			for (uint8_t i = 0; i < llen; i++)
+				uart_putc(' ');
+
+			// Backtrack to the start of the line again.
+			for (uint8_t i = 0; i < llen; i++)
+				uart_putc('\b');
+
+			// Zero-terminate the line, so that we can find the end
+			// if we move back to this line.
+			line[lbuf][llen] = '\0';
+
+			// Swap the buffers.
+			lbuf ^= 1;
+
+			// Print the new line, leaving the cursor at the end.
+			for (llen = 0, lpos = 0; line[lbuf][llen] != '\0'; llen++)
+				uart_putc(line[lbuf][lpos++]);
+
 			break;
 
 		case KEY_ARROWRT:
 			if (lpos < llen)
-				uart_putc(line[lpos++]);
+				uart_putc(line[lbuf][lpos++]);
 
 			break;
 
