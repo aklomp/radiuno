@@ -1,3 +1,6 @@
+#include <stdbool.h>
+#include <stdint.h>
+
 #define UART_FIFOSIZE	32
 
 struct uart_fifo {
@@ -6,13 +9,13 @@ struct uart_fifo {
 	uint8_t head;
 };
 
-void uart_init (void);
-void uart_putc (const uint8_t c);
-void uart_printf   (const char *restrict format, ...) __attribute__ ((format (printf, 1, 2)));
-void uart_printf_P (const char *restrict format, ...) __attribute__ ((format (printf, 1, 2)));
-bool uart_process (void);
-const uint8_t *uart_line (void);
-bool uart_flag_etx (void);
+extern void uart_init (void);
+extern void uart_putc (const uint8_t c);
+extern void uart_printf   (const char *restrict format, ...) __attribute__ ((format (printf, 1, 2)));
+extern void uart_printf_P (const char *restrict format, ...) __attribute__ ((format (printf, 1, 2)));
+extern bool uart_process (void);
+extern const uint8_t *uart_line (void);
+extern bool uart_flag_etx (void);
 
 // Rx FIFO is global:
 extern struct uart_fifo rx;

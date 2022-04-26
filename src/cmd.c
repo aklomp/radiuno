@@ -7,6 +7,7 @@
 #include <avr/pgmspace.h>
 #include <avr/sleep.h>
 
+#include "cmd.h"
 #include "si4735.h"
 #include "uart.h"
 
