@@ -21,6 +21,7 @@ LDFLAGS	+= -Wl,-Map=$(TARGET).map,--cref
 
 SRCS	 = $(wildcard src/*.c)
 OBJS	 = $(SRCS:.c=.o)
+LSTS	 = $(SRCS:.c=.lst)
 
 .PHONY: clean flash
 
@@ -38,4 +39,4 @@ flash: $(TARGET).hex
 	picocom -b 115200 /dev/ttyACM0
 
 clean:
-	$(RM) $(OBJS) $(TARGET).hex $(TARGET).elf *.lst *.map *.d
+	$(RM) $(OBJS) $(LSTS) $(TARGET).hex $(TARGET).elf $(TARGET).map
