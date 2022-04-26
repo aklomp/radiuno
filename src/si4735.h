@@ -36,35 +36,35 @@ struct si4735_rsq_status {
 	uint8_t freqoff;	// Only in FM mode
 };
 
-void si4735_init (void);
+extern void si4735_init (void);
 
-bool si4735_rev_get (struct si4735_rev *);
+extern bool si4735_rev_get (struct si4735_rev *);
 
-bool si4735_prop_get (uint16_t prop, uint16_t *val);
-bool si4735_prop_set (uint16_t prop, uint16_t val);
+extern bool si4735_prop_get (uint16_t prop, uint16_t *val);
+extern bool si4735_prop_set (uint16_t prop, uint16_t val);
 
-bool si4735_fm_power_up (void);
-bool si4735_am_power_up (void);
-bool si4735_sw_power_up (void);
+extern bool si4735_fm_power_up (void);
+extern bool si4735_am_power_up (void);
+extern bool si4735_sw_power_up (void);
 
-bool si4735_power_down (void);
+extern bool si4735_power_down (void);
 
-bool si4735_fm_freq_set (uint16_t freq, bool fast, bool freeze);
-bool si4735_am_freq_set (uint16_t freq, bool fast);
-bool si4735_sw_freq_set (uint16_t freq, bool fast);
+extern bool si4735_fm_freq_set (uint16_t freq, bool fast, bool freeze);
+extern bool si4735_am_freq_set (uint16_t freq, bool fast);
+extern bool si4735_sw_freq_set (uint16_t freq, bool fast);
 
-bool si4735_fm_tune_status (struct si4735_tune_status *);
-bool si4735_am_tune_status (struct si4735_tune_status *);
-bool si4735_sw_tune_status (struct si4735_tune_status *);
+extern bool si4735_fm_tune_status (struct si4735_tune_status *);
+extern bool si4735_am_tune_status (struct si4735_tune_status *);
+extern bool si4735_sw_tune_status (struct si4735_tune_status *);
 
-bool si4735_fm_rsq_status (struct si4735_rsq_status *);
-bool si4735_am_rsq_status (struct si4735_rsq_status *);
-bool si4735_sw_rsq_status (struct si4735_rsq_status *);
+extern bool si4735_fm_rsq_status (struct si4735_rsq_status *);
+extern bool si4735_am_rsq_status (struct si4735_rsq_status *);
+extern bool si4735_sw_rsq_status (struct si4735_rsq_status *);
 
-bool si4735_fm_seek_start (bool up, bool wrap);
-bool si4735_am_seek_start (bool up, bool wrap);
-bool si4735_sw_seek_start (bool up, bool wrap);
+extern bool si4735_fm_seek_start (bool up, bool wrap);
+extern bool si4735_am_seek_start (bool up, bool wrap);
+extern bool si4735_sw_seek_start (bool up, bool wrap);
 
-bool si4735_fm_seek_cancel (void);
-bool si4735_am_seek_cancel (void);
-bool si4735_sw_seek_cancel (void);
+extern bool si4735_fm_seek_cancel (void);
+extern bool si4735_am_seek_cancel (void);
+extern bool si4735_sw_seek_cancel (void);

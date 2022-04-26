@@ -1,1 +1,1 @@
-char *readline (void);
+extern char *readline (void);

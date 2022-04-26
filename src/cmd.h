@@ -1,2 +1,2 @@
-void cmd_init (void);
-void cmd (char *line);
+extern void cmd_init (void);
+extern void cmd (char *line);
