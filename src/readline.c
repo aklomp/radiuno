@@ -111,54 +111,46 @@ find_key (const uint8_t c, int8_t *idx, const int8_t pos)
 	}
 }
 
-// Get next character from FIFO
-static bool
-next_char (enum keytype *type, uint8_t *val)
+// Get the next key from the UART.
+static enum keytype
+next_key (uint8_t *val)
 {
 	static int8_t idx, pos;
 
-	// Process all available bytes in the Rx FIFO:
-	while (rx.tail != rx.head) {
+	for (;;) {
 
-		// Consume one character from the Rx FIFO:
-		char c = rx.fifo[rx.tail];
-		rx.tail = (rx.tail + 1) % UART_FIFOSIZE;
+		// Get the next character from the UART (blocking).
+		const uint8_t c = uart_getchar();
 
-		// Try to find a matching key from the special keys table:
+		// Try to find a matching key from the special keys table.
 		if (find_key(c, &idx, pos)) {
 
-			// If we are at max length, we're done:
+			// If we are at max length, we're done.
 			if (++pos == keys[idx].len) {
-				*type = keys[idx].type;
-				idx = pos = 0;
-				return true;
+				const enum keytype ret = keys[idx].type;
+				idx = pos = *val = 0;
+				return ret;
 			}
 
-			// Otherwise, need more input to be certain:
+			// Otherwise, need more input to be certain.
 			continue;
 		}
 
-		// No matching special key: it's a regular character:
+		// No matching special key: it's a regular character.
 		idx = pos = 0;
 		*val = c;
-		*type = KEY_REGULAR;
-		return true;
+		return KEY_REGULAR;
 	}
-
-	return false;
 }
 
 // Take characters from the Rx FIFO and create a line.
 char *
 readline (void)
 {
-	enum keytype	type;
-	uint8_t		val = 0;
+	uint8_t val;
 
-	while (next_char(&type, &val))
-	{
-		switch (type)
-		{
+	for (;;) {
+		switch (next_key(&val)) {
 		case KEY_REGULAR:
 			// Refuse insert if we are at the end of the line:
 			if (lpos == LINESIZE)
@@ -309,6 +301,4 @@ readline (void)
 			break;
 		}
 	}
-
-	return NULL;
 }
