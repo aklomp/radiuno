@@ -1,5 +1,6 @@
 #include <avr/interrupt.h>
 
+#include "args.h"
 #include "cmd.h"
 #include "readline.h"
 #include "si4735.h"
@@ -17,10 +18,12 @@ main (void)
 	cmd_init();
 
 	// Main loop.
-	for (;;)
-	{
-		// Get a line of input and feed it to the command parser.
-		cmd(readline());
+	for (;;) {
+		struct args args;
+
+		// Get a line of input, parse it into arguments, and feed it to
+		// the command executer.
+		cmd_exec(args_parse(readline(), &args));
 	}
 
 	return 0;
