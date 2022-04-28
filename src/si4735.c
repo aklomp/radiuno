@@ -261,29 +261,17 @@ si4735_seek_cancel (void)
 	return tune_status(&buf, true);
 }
 
-static bool
-rsq_status (bool fm, struct si4735_rsq_status *buf)
+bool
+si4735_rsq_status (struct si4735_rsq_status *buf)
 {
-	uint8_t cmd = fm ? 0x23 : 0x43;
+	if (mode == SI4735_MODE_DOWN)
+		return false;
+
+	const uint8_t cmd = mode == SI4735_MODE_FM ? 0x23 : 0x43;
+
 	write(&cmd, sizeof(cmd));
 	return read_long((uint8_t *)buf, sizeof(*buf));
 }
-
-bool
-si4735_fm_rsq_status (struct si4735_rsq_status *buf)
-{
-	return rsq_status(true, buf);
-}
-
-bool
-si4735_am_rsq_status (struct si4735_rsq_status *buf)
-{
-	return rsq_status(false, buf);
-}
-
-bool
-si4735_sw_rsq_status (struct si4735_rsq_status *buf)
-	__attribute__((alias ("si4735_am_rsq_status")));
 
 static bool
 power_up (uint8_t *cmd, uint8_t len)
