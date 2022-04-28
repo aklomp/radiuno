@@ -223,27 +223,27 @@ si4735_sw_seek_start (bool up, bool wrap)
 }
 
 static bool
-tune_status (bool fm, void *buf, uint8_t len, bool cancel_seek)
+tune_status (struct si4735_tune_status *buf, const bool cancel_seek)
 {
 	static struct {
 		uint8_t cmd;
 		uint8_t flags;
 	} c;
 
-	c.cmd   = fm ? 0x22 : 0x42;
-	c.flags = cancel_seek ? 0x02 : 0x00;
-
-	write(&c.cmd, sizeof(c));
-	if (!read_long(buf, len))
+	if (mode == SI4735_MODE_DOWN)
 		return false;
 
-	return true;
+	c.cmd   = mode == SI4735_MODE_FM ? 0x22 : 0x42;
+	c.flags = cancel_seek << 1;
+
+	write(&c.cmd, sizeof(c));
+	return read_long((uint8_t *)buf, sizeof(*buf));
 }
 
 bool
 si4735_fm_tune_status (struct si4735_tune_status *buf)
 {
-	if (!tune_status(true, buf, sizeof(*buf), false))
+	if (!tune_status(buf, false))
 		return false;
 
 	bswap16(&buf->freq);
@@ -253,7 +253,7 @@ si4735_fm_tune_status (struct si4735_tune_status *buf)
 bool
 si4735_am_tune_status (struct si4735_tune_status *buf)
 {
-	if (!tune_status(false, buf, sizeof(*buf), false))
+	if (!tune_status(buf, false))
 		return false;
 
 	bswap16(&buf->freq);
@@ -266,22 +266,12 @@ si4735_sw_tune_status (struct si4735_tune_status *buf)
 	__attribute__((alias ("si4735_am_tune_status")));
 
 bool
-si4735_fm_seek_cancel (void)
+si4735_seek_cancel (void)
 {
 	struct si4735_tune_status buf;
-	return tune_status(true, &buf, sizeof(buf), true);
-}
 
-bool
-si4735_am_seek_cancel (void)
-{
-	struct si4735_tune_status buf;
-	return tune_status(false, &buf, sizeof(buf), true);
+	return tune_status(&buf, true);
 }
-
-bool
-si4735_sw_seek_cancel (void)
-	__attribute__((alias ("si4735_am_seek_cancel")));
 
 static bool
 rsq_status (bool fm, struct si4735_rsq_status *buf)

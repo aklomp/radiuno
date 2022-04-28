@@ -101,17 +101,6 @@ seek_start (const bool up, const bool wrap)
 }
 
 static bool
-seek_cancel (void)
-{
-	switch (state.mode) {
-	case MODE_FM: return si4735_fm_seek_cancel();
-	case MODE_AM: return si4735_am_seek_cancel();
-	case MODE_SW: return si4735_sw_seek_cancel();
-	default     : return false;
-	}
-}
-
-static bool
 tune_status (struct si4735_tune_status *tune)
 {
 	switch (state.mode) {
@@ -309,7 +298,7 @@ seek_status (void)
 			static const char PROGMEM fmt_failure[] = "\rSeek: failed to cancel.\n";
 
 			// Cancel the seek.
-			if (!seek_cancel()) {
+			if (!si4735_seek_cancel()) {
 				uart_printf_P(fmt_failure);
 				continue;
 			}
