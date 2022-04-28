@@ -1,3 +1,4 @@
+#include <stddef.h>
 #include <avr/io.h>
 #include <util/delay.h>
 
@@ -169,56 +170,43 @@ si4735_sw_freq_set (uint16_t freq, bool fast)
 }
 
 bool
-si4735_fm_seek_start (bool up, bool wrap)
+si4735_seek_start (const bool up, const bool wrap, const bool sw)
 {
 	static struct {
 		uint8_t cmd;
 		uint8_t flags;
+		struct {
+			uint16_t unused;	// AM/SW/LW only
+			uint16_t antcap;	// AM/SW/LW only
+		} am;
+	} c;
+	size_t size;
+
+	switch (mode) {
+	case SI4735_MODE_FM:
+		c.cmd = 0x21;
+		size  = sizeof (c) - sizeof (c.am);
+		break;
+
+	case SI4735_MODE_AM:
+		c.cmd = 0x41;
+		size  = sizeof (c);
+
+		// For the SW band, the programming guide says that the antenna
+		// capacitance must be set to 1. For other bands (FM/AM/LW), it
+		// is best set to zero (auto). The chip does not track the
+		// specific band it is operating in, so that information must
+		// be passed in through a parameter.
+		c.am.antcap = sw ? __builtin_bswap16(1) : 0;
+		break;
+
+	default:
+		return false;
 	}
-	c = {
-		.cmd = 0x21,
-	};
 
-	c.flags = (up ? 0x08 : 0x00) | (wrap ? 0x04 : 0x00);
+	c.flags = (up << 3) | (wrap << 2);
 
-	write(&c.cmd, sizeof(c));
-	return !(read_status() & 0x40);
-}
-
-bool
-si4735_am_seek_start (bool up, bool wrap)
-{
-	static struct {
-		uint8_t cmd;
-		uint8_t flags;
-	}
-	c = {
-		.cmd = 0x41,
-	};
-
-	c.flags = (up ? 0x08 : 0x00) | (wrap ? 0x04 : 0x00);
-
-	write(&c.cmd, sizeof(c));
-	return !(read_status() & 0x40);
-}
-
-bool
-si4735_sw_seek_start (bool up, bool wrap)
-{
-	static struct {
-		uint8_t  cmd;
-		uint8_t  flags;
-		uint16_t unused;
-		uint16_t antcap;
-	}
-	c = {
-		.cmd	= 0x41,
-		.antcap	= __builtin_bswap16(0x01),
-	};
-
-	c.flags = (up ? 0x08 : 0x00) | (wrap ? 0x04 : 0x00);
-
-	write(&c.cmd, sizeof(c));
+	write(&c.cmd, size);
 	return !(read_status() & 0x40);
 }
 

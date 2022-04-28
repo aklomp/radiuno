@@ -70,9 +70,6 @@ extern bool si4735_fm_rsq_status (struct si4735_rsq_status *);
 extern bool si4735_am_rsq_status (struct si4735_rsq_status *);
 extern bool si4735_sw_rsq_status (struct si4735_rsq_status *);
 
-extern bool si4735_fm_seek_start (bool up, bool wrap);
-extern bool si4735_am_seek_start (bool up, bool wrap);
-extern bool si4735_sw_seek_start (bool up, bool wrap);
-
+extern bool si4735_seek_start (const bool up, const bool wrap, const bool sw);
 extern bool si4735_seek_cancel (void);
 extern enum si4735_mode si4735_mode_get (void);

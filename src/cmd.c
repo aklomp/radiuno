@@ -90,17 +90,6 @@ power_up (const enum mode mode)
 }
 
 static bool
-seek_start (const bool up, const bool wrap)
-{
-	switch (state.mode) {
-	case MODE_FM: return si4735_fm_seek_start(up, wrap);
-	case MODE_AM: return si4735_am_seek_start(up, wrap);
-	case MODE_SW: return si4735_sw_seek_start(up, wrap);
-	default     : return false;
-	}
-}
-
-static bool
 tune_status (struct si4735_tune_status *tune)
 {
 	switch (state.mode) {
@@ -369,7 +358,7 @@ cmd_seek (struct args *args, bool help)
 		if (strncasecmp_P(args->av[1], map[i].cmd, map[i].len))
 			continue;
 
-		if (!seek_start(map[i].up, true))
+		if (!si4735_seek_start(map[i].up, true, state.mode == MODE_SW))
 			return false;
 
 		seek_status();
