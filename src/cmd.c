@@ -84,7 +84,7 @@ power_up (const enum mode mode)
 	switch (mode) {
 	case MODE_FM: return si4735_fm_power_up();
 	case MODE_AM: return si4735_am_power_up();
-	case MODE_SW: return si4735_sw_power_up();
+	case MODE_SW: return si4735_am_power_up();
 	default     : return false;
 	}
 }

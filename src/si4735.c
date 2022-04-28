@@ -283,10 +283,6 @@ si4735_am_power_up (void)
 }
 
 bool
-si4735_sw_power_up (void)
-	__attribute__((alias ("si4735_am_power_up")));
-
-bool
 si4735_power_down (void)
 {
 	static uint8_t cmd[] = { 0x11 };

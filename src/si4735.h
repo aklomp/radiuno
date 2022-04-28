@@ -46,18 +46,12 @@ struct si4735_rsq_status {
 };
 
 extern void si4735_init (void);
-
 extern bool si4735_rev_get (struct si4735_rev *);
-
 extern bool si4735_prop_get (uint16_t prop, uint16_t *val);
 extern bool si4735_prop_set (uint16_t prop, uint16_t val);
-
 extern bool si4735_fm_power_up (void);
 extern bool si4735_am_power_up (void);
-extern bool si4735_sw_power_up (void);
-
 extern bool si4735_power_down (void);
-
 extern bool si4735_freq_set (const uint16_t freq, const bool fast, const bool freeze, const bool sw);
 extern bool si4735_tune_status (struct si4735_tune_status *);
 extern bool si4735_rsq_status (struct si4735_rsq_status *);
