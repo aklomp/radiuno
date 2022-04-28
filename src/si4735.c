@@ -111,58 +111,37 @@ si4735_mode_get (void)
 }
 
 bool
-si4735_fm_freq_set (uint16_t freq, bool fast, bool freeze)
-{
-	static struct {
-		uint8_t  cmd;
-		uint8_t  flags;
-		uint16_t freq;
-	}
-	c = {
-		.cmd = 0x20,
-	};
-
-	c.flags = (freeze << 1) | (fast << 0);
-	c.freq  = __builtin_bswap16(freq);
-
-	write(&c.cmd, sizeof(c));
-	return !(read_status() & 0x40);
-}
-
-bool
-si4735_am_freq_set (uint16_t freq, bool fast)
-{
-	static struct {
-		uint8_t  cmd;
-		uint8_t  flags;
-		uint16_t freq;
-	}
-	c = {
-		.cmd = 0x40,
-	};
-
-	c.flags = fast;
-	c.freq  = __builtin_bswap16(freq);
-
-	write(&c.cmd, sizeof(c));
-	return !(read_status() & 0x40);
-}
-
-bool
-si4735_sw_freq_set (uint16_t freq, bool fast)
+si4735_freq_set (const uint16_t freq, const bool fast, const bool freeze, const bool sw)
 {
 	static struct {
 		uint8_t  cmd;
 		uint8_t  flags;
 		uint16_t freq;
 		uint16_t antcap;
-	}
-	c = {
-		.cmd    = 0x40,
-		.antcap = 0x01,
-	};
+	} c;
 
-	c.flags = fast;
+	switch (mode) {
+	case SI4735_MODE_FM:
+		c.cmd   = 0x20;
+		c.flags = (freeze << 1) | fast;
+		break;
+
+	case SI4735_MODE_AM:
+		c.cmd   = 0x40;
+		c.flags = fast;
+
+		// For the SW band, the programming guide says that the antenna
+		// capacitance must be set to 1. For other bands (FM/AM/LW), it
+		// is best set to zero (auto). The chip does not track the
+		// specific band it is operating in, so that information must
+		// be passed in through a parameter.
+		c.antcap = sw ? __builtin_bswap16(1) : 0;
+		break;
+
+	default:
+		return false;
+	}
+
 	c.freq  = __builtin_bswap16(freq);
 
 	write(&c.cmd, sizeof(c));
