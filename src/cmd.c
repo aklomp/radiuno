@@ -90,17 +90,6 @@ power_up (const enum mode mode)
 }
 
 static bool
-tune_status (struct si4735_tune_status *tune)
-{
-	switch (state.mode) {
-	case MODE_FM: return si4735_fm_tune_status(tune);
-	case MODE_AM: return si4735_am_tune_status(tune);
-	case MODE_SW: return si4735_sw_tune_status(tune);
-	default     : return false;
-	}
-}
-
-static bool
 freq_set (uint16_t freq)
 {
 	bool ret;
@@ -115,7 +104,7 @@ freq_set (uint16_t freq)
 	// If the command was successful, wait for STCINT to become set,
 	// indicating that the chip has settled on a frequency.
 	while (ret) {
-		if (!tune_status(&state.tune)) {
+		if (!si4735_tune_status(&state.tune)) {
 			ret = false;
 			break;
 		}
@@ -223,7 +212,7 @@ cmd_info (struct args *args, bool help)
 	}
 
 	// Get tune status:
-	if (!tune_status(&state.tune))
+	if (!si4735_tune_status(&state.tune))
 		return false;
 
 	// Print generic info.
@@ -270,7 +259,7 @@ seek_status (void)
 		state.timer_tick = false;
 
 		// Get tuning status:
-		if (!tune_status(&state.tune))
+		if (!si4735_tune_status(&state.tune))
 			continue;
 
 		// Print current frequency:
@@ -295,7 +284,7 @@ seek_status (void)
 			// Wait for STCINT to become set, indicating that the
 			// chip stopped seeking and has settled on a station.
 			while (!(state.tune.status & 0x01))
-				if (!tune_status(&state.tune))
+				if (!si4735_tune_status(&state.tune))
 					break;
 
 			uart_printf_P(fmt_success);
@@ -446,7 +435,7 @@ prompt (void)
 		[MODE_SW] = "sw %u > ",
 	};
 
-	(tune_status(&state.tune) && state.tune.freq)
+	(si4735_tune_status(&state.tune) && state.tune.freq)
 		? uart_printf_P(prompt_freq[state.mode], state.tune.freq)
 		: uart_printf_P(prompt_none[state.mode]);
 }

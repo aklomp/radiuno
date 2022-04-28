@@ -229,29 +229,17 @@ tune_status (struct si4735_tune_status *buf, const bool cancel_seek)
 }
 
 bool
-si4735_fm_tune_status (struct si4735_tune_status *buf)
+si4735_tune_status (struct si4735_tune_status *buf)
 {
 	if (!tune_status(buf, false))
 		return false;
 
+	if (mode == SI4735_MODE_AM)
+		bswap16(&buf->am.readantcap);
+
 	bswap16(&buf->freq);
 	return true;
 }
-
-bool
-si4735_am_tune_status (struct si4735_tune_status *buf)
-{
-	if (!tune_status(buf, false))
-		return false;
-
-	bswap16(&buf->freq);
-	bswap16(&buf->am.readantcap);
-	return true;
-}
-
-bool
-si4735_sw_tune_status (struct si4735_tune_status *buf)
-	__attribute__((alias ("si4735_am_tune_status")));
 
 bool
 si4735_seek_cancel (void)

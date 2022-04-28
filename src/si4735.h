@@ -62,10 +62,7 @@ extern bool si4735_fm_freq_set (uint16_t freq, bool fast, bool freeze);
 extern bool si4735_am_freq_set (uint16_t freq, bool fast);
 extern bool si4735_sw_freq_set (uint16_t freq, bool fast);
 
-extern bool si4735_fm_tune_status (struct si4735_tune_status *);
-extern bool si4735_am_tune_status (struct si4735_tune_status *);
-extern bool si4735_sw_tune_status (struct si4735_tune_status *);
-
+extern bool si4735_tune_status (struct si4735_tune_status *);
 extern bool si4735_rsq_status (struct si4735_rsq_status *);
 extern bool si4735_seek_start (const bool up, const bool wrap, const bool sw);
 extern bool si4735_seek_cancel (void);
