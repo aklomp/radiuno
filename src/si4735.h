@@ -1,6 +1,12 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+enum si4735_mode {
+	SI4735_MODE_DOWN,
+	SI4735_MODE_FM,		// FM
+	SI4735_MODE_AM,		// AM/SW/LW
+};
+
 struct si4735_rev {
 	uint8_t  status;
 	uint8_t  part_number;
@@ -71,3 +77,5 @@ extern bool si4735_sw_seek_start (bool up, bool wrap);
 extern bool si4735_fm_seek_cancel (void);
 extern bool si4735_am_seek_cancel (void);
 extern bool si4735_sw_seek_cancel (void);
+
+extern enum si4735_mode si4735_mode_get (void);

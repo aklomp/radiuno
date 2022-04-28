@@ -17,6 +17,9 @@
 #define CMD_READ_SHORT	0xA0
 #define CMD_READ_LONG	0xE0
 
+// Chip bootup mode.
+static enum si4735_mode mode = SI4735_MODE_DOWN;
+
 static inline void
 bswap16 (uint16_t *n)
 {
@@ -98,6 +101,12 @@ read_long (uint8_t *buf, uint8_t len)
 
 	// Return error status:
 	return !(buf[0] & 0x40);
+}
+
+enum si4735_mode
+si4735_mode_get (void)
+{
+	return mode;
 }
 
 bool
@@ -320,14 +329,24 @@ bool
 si4735_fm_power_up (void)
 {
 	static uint8_t cmd[] = { 0x01, 0x50, 0x05 };
-	return power_up(cmd, sizeof(cmd));
+
+	if (!power_up(cmd, sizeof(cmd)))
+		return false;
+
+	mode = SI4735_MODE_FM;
+	return true;
 }
 
 bool
 si4735_am_power_up (void)
 {
 	static uint8_t cmd[] = { 0x01, 0x51, 0x05 };
-	return power_up(cmd, sizeof(cmd));
+
+	if (!power_up(cmd, sizeof(cmd)))
+		return false;
+
+	mode = SI4735_MODE_AM;
+	return true;
 }
 
 bool
@@ -339,7 +358,12 @@ si4735_power_down (void)
 {
 	static uint8_t cmd[] = { 0x11 };
 	write(cmd, sizeof(cmd));
-	return !(read_status() & 0x40);
+
+	if (read_status() & 0x40)
+		return false;
+
+	mode = SI4735_MODE_DOWN;
+	return true;
 }
 
 bool
