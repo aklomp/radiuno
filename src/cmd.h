@@ -1,7 +1,17 @@
 #pragma once
 
+#include <stdbool.h>
+
 #include "args.h"
 #include "si4735.h"
+
+#define CMD_REGISTER(CMD)			\
+	__attribute__((constructor, used))	\
+	static void				\
+	link_cmd (void)				\
+	{					\
+		cmd_link(CMD);			\
+	}
 
 // Operating band of the command layer. Useful to set band limits, print
 // prompts, etc. This differs from the si4735's chip mode, which has lower
@@ -19,5 +29,16 @@ struct cmd_state {
 	struct si4735_tune_status tune;
 };
 
-extern void cmd_exec (struct args *args);
+struct cmd {
+	struct cmd *next;
+	const char *name;
+	bool (* on_call) (const struct args *args, struct cmd_state *state);
+	void (* on_help) (void);
+};
+
+// Pointer to the first command in the linked list.
+extern struct cmd *cmd_list;
+
+extern void cmd_link (struct cmd *cmd);
+extern bool cmd_exec (const struct args *args);
 extern void cmd_init (void);

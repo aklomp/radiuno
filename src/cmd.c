@@ -7,7 +7,6 @@
 #include <avr/pgmspace.h>
 #include <avr/sleep.h>
 
-#include "args.h"
 #include "cmd.h"
 #include "uart.h"
 #include "util.h"
@@ -17,6 +16,8 @@
 //   http://patorjk.com/software/taag/#p=display&f=Doom&t=Radiuno
 extern uint8_t _binary_src_banner_txt_start;
 extern uint8_t _binary_src_banner_txt_end;
+
+struct cmd *cmd_list = NULL;
 
 static struct cmd_state state = {
 	.band = CMD_BAND_NONE,
@@ -168,6 +169,7 @@ cmd_mode (struct args *args, bool help)
 	return false;
 }
 
+__attribute__((used))
 static bool
 cmd_info (struct args *args, bool help)
 {
@@ -339,6 +341,7 @@ cmd_seek (struct args *args, bool help)
 	return false;
 }
 
+__attribute__((used))
 static bool
 cmd_tune (struct args *args, bool help)
 {
@@ -368,22 +371,7 @@ cmd_tune (struct args *args, bool help)
 	return freq_set(freq);
 }
 
-// Need to forward-declare this one:
-static bool cmd_help (struct args *, bool);
-
-// Toplevel command table:
-static const struct {
-	const char *cmd;
-	bool (* handler) (struct args *, bool);
-}
-map[] = {
-	{ "help", cmd_help },
-	{ "info", cmd_info },
-	{ "mode", cmd_mode },
-	{ "seek", cmd_seek },
-	{ "tune", cmd_tune },
-};
-
+__attribute__((used))
 static bool
 cmd_help (struct args *args, bool help)
 {
@@ -392,13 +380,36 @@ cmd_help (struct args *args, bool help)
 		return true;
 	}
 
-	// Call all toplevel handlers in help mode.
-	FOREACH (map, m) {
-		args->av[0] = m->cmd;
-		m->handler(args, true);
-	}
+	// Call the help callback on all modules.
+	for (const struct cmd *c = cmd_list; c; c = c->next)
+		c->on_help();
 
 	return true;
+}
+
+void
+cmd_link (struct cmd *cmd)
+{
+	struct cmd *c;
+
+	// If this is the first command to register itself, or if it sorts
+	// below the current list head, then insert it at the front.
+	if (cmd_list == NULL || strcasecmp(cmd->name, cmd_list->name) < 0) {
+		cmd->next = cmd_list;
+		cmd_list  = cmd;
+		return;
+	}
+
+	// Walk the linked list to find either the last element, or the element
+	// whose next element sorts above this command. This yields the element
+	// after which the command should be inserted.
+	for (c = cmd_list; c->next != NULL; c = c->next)
+		if (strcasecmp(c->next->name, cmd->name) > 0)
+			break;
+
+	// Insert the given command structure at this location.
+	cmd->next = c->next;
+	c->next   = cmd;
 }
 
 static void
@@ -424,29 +435,46 @@ prompt (void)
 		: uart_printf_P(prompt_none[state.band]);
 }
 
-// Parse a zero-terminated commandline
-void
-cmd_exec (struct args *args)
+static bool
+dispatch_cmd (const struct args *args)
 {
-	static const char PROGMEM failed[] = "failed\n";
+	static const char PROGMEM failed[]  = "%s: failed\n";
+	static const char PROGMEM unknown[] = "%s: unknown command\n";
 
+	// Allow empty lines.
+	if (!args->ac)
+		return true;
+
+	// Find the command in the linked list and call it.
+	for (const struct cmd *c = cmd_list; c; c = c->next) {
+		if (strcasecmp(args->av[0], c->name))
+			continue;
+
+		if (c->on_call(args, &state))
+			return true;
+
+		uart_printf_P(failed, args->av[0]);
+		return false;
+	}
+
+	// Print an error message if the command was not found.
+	uart_printf_P(unknown, args->av[0]);
+	return false;
+}
+
+// Parse a command line.
+bool
+cmd_exec (const struct args *args)
+{
 	// Start on a new line.
 	uart_printf("\n");
 
-	// Try to match a command.
-	if (args->ac) {
-		FOREACH (map, m) {
-			if (strcasecmp(args->av[0], m->cmd) == 0) {
-				args->av[0] = m->cmd;
-				if (!m->handler(args, false)) {
-					uart_printf_P(failed);
-				}
-				break;
-			}
-		}
-	}
+	// Dispatch the command.
+	const bool ret = dispatch_cmd(args);
 
+	// Return to the prompt.
 	prompt();
+	return ret;
 }
 
 static void
