@@ -371,22 +371,6 @@ cmd_tune (struct args *args, bool help)
 	return freq_set(freq);
 }
 
-__attribute__((used))
-static bool
-cmd_help (struct args *args, bool help)
-{
-	if (help) {
-		uart_printf("%s\n", args->av[0]);
-		return true;
-	}
-
-	// Call the help callback on all modules.
-	for (const struct cmd *c = cmd_list; c; c = c->next)
-		c->on_help();
-
-	return true;
-}
-
 void
 cmd_link (struct cmd *cmd)
 {

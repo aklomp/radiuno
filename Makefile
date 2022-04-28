@@ -19,7 +19,7 @@ CFLAGS	+= -Wall -Wstrict-prototypes
 LDFLAGS	 = $(COMMON_FLAGS)
 LDFLAGS	+= -Wl,-Map=$(TARGET).map,--cref
 
-SRCS	 = $(wildcard src/*.c)
+SRCS	 = $(wildcard src/*.c src/*/*.c)
 OBJS	 = $(SRCS:.c=.o)
 OBJS	+= src/banner.o
 
