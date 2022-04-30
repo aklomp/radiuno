@@ -26,7 +26,7 @@ enum mode {
 static struct {
 	enum mode			mode;
 	struct si4735_tune_status	tune;
-	bool				timer_tick;
+	volatile bool			timer_tick;
 }
 state = {
 	.mode = MODE_DOWN,

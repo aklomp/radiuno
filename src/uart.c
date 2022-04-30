@@ -10,13 +10,13 @@
 #define BAUD_PRESCALE	((F_CPU / (BAUDRATE * 8UL)) - 1)
 #define FIFOSIZE	32
 
-static struct fifo {
+static volatile struct fifo {
 	uint8_t fifo[FIFOSIZE];
 	uint8_t tail;
 	uint8_t head;
 } rx, tx;
 
-static bool flag_etx = false;
+static volatile bool flag_etx = false;
 
 static inline uint8_t
 fifo_inc (uint8_t i)
