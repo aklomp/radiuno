@@ -7,8 +7,23 @@ enum si4735_mode {
 	SI4735_MODE_AM,		// AM/SW/LW
 };
 
+struct si4735_status {
+	union {
+		struct {
+			uint8_t STCINT : 1;	// Seek/Tune Complete Interrupt
+			uint8_t ASQINT : 1;	// Audio Signal Quality Interrupt (unavailable)
+			uint8_t RDSINT : 1;	// Radio Data System (RDS) Interrupt
+			uint8_t RSQINT : 1;	// Received Signal Quality Interrupt
+			uint8_t pad    : 2;	// Reserved padding
+			uint8_t ERR    : 1;	// Error
+			uint8_t CTS    : 1;	// Clear to Send
+		};
+		uint8_t raw;
+	};
+};
+
 struct si4735_rev {
-	uint8_t  status;
+	struct si4735_status status;
 	uint8_t  part_number;
 	uint8_t  fwmajor;
 	uint8_t  fwminor;
@@ -19,7 +34,7 @@ struct si4735_rev {
 };
 
 struct si4735_tune_status {
-	uint8_t  status;
+	struct si4735_status status;
 	uint8_t  flags;
 	uint16_t freq;
 	uint8_t  rssi;
@@ -36,7 +51,7 @@ struct si4735_tune_status {
 };
 
 struct si4735_rsq_status {
-	uint8_t  status;
+	struct si4735_status status;
 	uint8_t flags[2];
 	uint8_t stblend;	// Only in FM mode
 	uint8_t rssi;

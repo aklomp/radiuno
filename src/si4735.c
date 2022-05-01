@@ -71,12 +71,12 @@ write (const uint8_t *cmd, uint8_t len)
 }
 
 // Read short response from chip:
-static uint8_t
+static struct si4735_status
 read_status (void)
 {
 	slave_select();
 	spi_xfer(CMD_READ_SHORT);
-	uint8_t status = spi_xfer(0x00);
+	const struct si4735_status status = { .raw = spi_xfer(0x00) };
 	slave_unselect();
 	return status;
 }
@@ -145,7 +145,7 @@ si4735_freq_set (const uint16_t freq, const bool fast, const bool freeze, const 
 	c.freq  = __builtin_bswap16(freq);
 
 	write(&c.cmd, sizeof(c));
-	return !(read_status() & 0x40);
+	return !read_status().ERR;
 }
 
 bool
@@ -186,7 +186,7 @@ si4735_seek_start (const bool up, const bool wrap, const bool sw)
 	c.flags = (up << 3) | (wrap << 2);
 
 	write(&c.cmd, size);
-	return !(read_status() & 0x40);
+	return !read_status().ERR;
 }
 
 static bool
@@ -243,7 +243,7 @@ si4735_rsq_status (struct si4735_rsq_status *buf)
 static bool
 power_up (uint8_t *cmd, uint8_t len)
 {
-	uint8_t status;
+	struct si4735_status status;
 
 	write(cmd, len);
 
@@ -251,11 +251,11 @@ power_up (uint8_t *cmd, uint8_t len)
 	read_status();
 
 	// It returns 0x00 until powerup is done:
-	while ((status = read_status()) == 0x00)
+	while ((status = read_status()).raw == 0x00)
 		continue;
 
 	// Return error flag:
-	return !(status & 0x40);
+	return !status.ERR;
 }
 
 bool
@@ -288,7 +288,7 @@ si4735_power_down (void)
 	static uint8_t cmd[] = { 0x11 };
 	write(cmd, sizeof(cmd));
 
-	if (read_status() & 0x40)
+	if (read_status().ERR)
 		return false;
 
 	mode = SI4735_MODE_DOWN;
@@ -312,7 +312,7 @@ si4735_prop_set (uint16_t prop, uint16_t val)
 	c.val  = __builtin_bswap16(val);
 
 	write(&c.cmd, sizeof(c));
-	return !(read_status() & 0x40);
+	return !read_status().ERR;
 }
 
 bool

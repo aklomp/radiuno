@@ -98,7 +98,7 @@ freq_set (const uint16_t freq)
 	// If the command was successful, wait for STCINT to become set,
 	// indicating that the chip has settled on a frequency.
 	while (si4735_tune_status(&state.tune))
-		if (state.tune.status & 0x01)
+		if (state.tune.status.STCINT)
 			return true;
 
 	return false;
@@ -271,7 +271,7 @@ seek_status (void)
 
 			// Wait for STCINT to become set, indicating that the
 			// chip stopped seeking and has settled on a station.
-			while (!(state.tune.status & 0x01))
+			while (!state.tune.status.STCINT)
 				if (!si4735_tune_status(&state.tune))
 					break;
 
@@ -280,7 +280,7 @@ seek_status (void)
 		}
 
 		// If STCINT flag is set, seek has finished:
-		if (state.tune.status & 0x01) {
+		if (state.tune.status.STCINT) {
 
 			// Check if we found a valid station:
 			if (state.tune.flags & 0x01) {
