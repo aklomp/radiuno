@@ -1,6 +1,12 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+enum si4735_mode {
+	SI4735_MODE_DOWN,
+	SI4735_MODE_FM,		// FM
+	SI4735_MODE_AM,		// AM/SW/LW
+};
+
 struct si4735_rev {
 	uint8_t  status;
 	uint8_t  part_number;
@@ -40,34 +46,15 @@ struct si4735_rsq_status {
 };
 
 extern void si4735_init (void);
-
 extern bool si4735_rev_get (struct si4735_rev *);
-
 extern bool si4735_prop_get (uint16_t prop, uint16_t *val);
 extern bool si4735_prop_set (uint16_t prop, uint16_t val);
-
 extern bool si4735_fm_power_up (void);
 extern bool si4735_am_power_up (void);
-extern bool si4735_sw_power_up (void);
-
 extern bool si4735_power_down (void);
-
-extern bool si4735_fm_freq_set (uint16_t freq, bool fast, bool freeze);
-extern bool si4735_am_freq_set (uint16_t freq, bool fast);
-extern bool si4735_sw_freq_set (uint16_t freq, bool fast);
-
-extern bool si4735_fm_tune_status (struct si4735_tune_status *);
-extern bool si4735_am_tune_status (struct si4735_tune_status *);
-extern bool si4735_sw_tune_status (struct si4735_tune_status *);
-
-extern bool si4735_fm_rsq_status (struct si4735_rsq_status *);
-extern bool si4735_am_rsq_status (struct si4735_rsq_status *);
-extern bool si4735_sw_rsq_status (struct si4735_rsq_status *);
-
-extern bool si4735_fm_seek_start (bool up, bool wrap);
-extern bool si4735_am_seek_start (bool up, bool wrap);
-extern bool si4735_sw_seek_start (bool up, bool wrap);
-
-extern bool si4735_fm_seek_cancel (void);
-extern bool si4735_am_seek_cancel (void);
-extern bool si4735_sw_seek_cancel (void);
+extern bool si4735_freq_set (const uint16_t freq, const bool fast, const bool freeze, const bool sw);
+extern bool si4735_tune_status (struct si4735_tune_status *);
+extern bool si4735_rsq_status (struct si4735_rsq_status *);
+extern bool si4735_seek_start (const bool up, const bool wrap, const bool sw);
+extern bool si4735_seek_cancel (void);
+extern enum si4735_mode si4735_mode_get (void);

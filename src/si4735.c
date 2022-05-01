@@ -1,3 +1,4 @@
+#include <stddef.h>
 #include <avr/io.h>
 #include <util/delay.h>
 
@@ -16,6 +17,9 @@
 #define CMD_WRITE	0x48
 #define CMD_READ_SHORT	0xA0
 #define CMD_READ_LONG	0xE0
+
+// Chip bootup mode.
+static enum si4735_mode mode = SI4735_MODE_DOWN;
 
 static inline void
 bswap16 (uint16_t *n)
@@ -100,59 +104,44 @@ read_long (uint8_t *buf, uint8_t len)
 	return !(buf[0] & 0x40);
 }
 
-bool
-si4735_fm_freq_set (uint16_t freq, bool fast, bool freeze)
+enum si4735_mode
+si4735_mode_get (void)
 {
-	static struct {
-		uint8_t  cmd;
-		uint8_t  flags;
-		uint16_t freq;
-	}
-	c = {
-		.cmd = 0x20,
-	};
-
-	c.flags = (freeze << 1) | (fast << 0);
-	c.freq  = __builtin_bswap16(freq);
-
-	write(&c.cmd, sizeof(c));
-	return !(read_status() & 0x40);
+	return mode;
 }
 
 bool
-si4735_am_freq_set (uint16_t freq, bool fast)
-{
-	static struct {
-		uint8_t  cmd;
-		uint8_t  flags;
-		uint16_t freq;
-	}
-	c = {
-		.cmd = 0x40,
-	};
-
-	c.flags = fast;
-	c.freq  = __builtin_bswap16(freq);
-
-	write(&c.cmd, sizeof(c));
-	return !(read_status() & 0x40);
-}
-
-bool
-si4735_sw_freq_set (uint16_t freq, bool fast)
+si4735_freq_set (const uint16_t freq, const bool fast, const bool freeze, const bool sw)
 {
 	static struct {
 		uint8_t  cmd;
 		uint8_t  flags;
 		uint16_t freq;
 		uint16_t antcap;
-	}
-	c = {
-		.cmd    = 0x40,
-		.antcap = 0x01,
-	};
+	} c;
 
-	c.flags = fast;
+	switch (mode) {
+	case SI4735_MODE_FM:
+		c.cmd   = 0x20;
+		c.flags = (freeze << 1) | fast;
+		break;
+
+	case SI4735_MODE_AM:
+		c.cmd   = 0x40;
+		c.flags = fast;
+
+		// For the SW band, the programming guide says that the antenna
+		// capacitance must be set to 1. For other bands (FM/AM/LW), it
+		// is best set to zero (auto). The chip does not track the
+		// specific band it is operating in, so that information must
+		// be passed in through a parameter.
+		c.antcap = sw ? __builtin_bswap16(1) : 0;
+		break;
+
+	default:
+		return false;
+	}
+
 	c.freq  = __builtin_bswap16(freq);
 
 	write(&c.cmd, sizeof(c));
@@ -160,143 +149,96 @@ si4735_sw_freq_set (uint16_t freq, bool fast)
 }
 
 bool
-si4735_fm_seek_start (bool up, bool wrap)
+si4735_seek_start (const bool up, const bool wrap, const bool sw)
 {
 	static struct {
 		uint8_t cmd;
 		uint8_t flags;
+		struct {
+			uint16_t unused;	// AM/SW/LW only
+			uint16_t antcap;	// AM/SW/LW only
+		} am;
+	} c;
+	size_t size;
+
+	switch (mode) {
+	case SI4735_MODE_FM:
+		c.cmd = 0x21;
+		size  = sizeof (c) - sizeof (c.am);
+		break;
+
+	case SI4735_MODE_AM:
+		c.cmd = 0x41;
+		size  = sizeof (c);
+
+		// For the SW band, the programming guide says that the antenna
+		// capacitance must be set to 1. For other bands (FM/AM/LW), it
+		// is best set to zero (auto). The chip does not track the
+		// specific band it is operating in, so that information must
+		// be passed in through a parameter.
+		c.am.antcap = sw ? __builtin_bswap16(1) : 0;
+		break;
+
+	default:
+		return false;
 	}
-	c = {
-		.cmd = 0x21,
-	};
 
-	c.flags = (up ? 0x08 : 0x00) | (wrap ? 0x04 : 0x00);
+	c.flags = (up << 3) | (wrap << 2);
 
-	write(&c.cmd, sizeof(c));
-	return !(read_status() & 0x40);
-}
-
-bool
-si4735_am_seek_start (bool up, bool wrap)
-{
-	static struct {
-		uint8_t cmd;
-		uint8_t flags;
-	}
-	c = {
-		.cmd = 0x41,
-	};
-
-	c.flags = (up ? 0x08 : 0x00) | (wrap ? 0x04 : 0x00);
-
-	write(&c.cmd, sizeof(c));
-	return !(read_status() & 0x40);
-}
-
-bool
-si4735_sw_seek_start (bool up, bool wrap)
-{
-	static struct {
-		uint8_t  cmd;
-		uint8_t  flags;
-		uint16_t unused;
-		uint16_t antcap;
-	}
-	c = {
-		.cmd	= 0x41,
-		.antcap	= __builtin_bswap16(0x01),
-	};
-
-	c.flags = (up ? 0x08 : 0x00) | (wrap ? 0x04 : 0x00);
-
-	write(&c.cmd, sizeof(c));
+	write(&c.cmd, size);
 	return !(read_status() & 0x40);
 }
 
 static bool
-tune_status (bool fm, void *buf, uint8_t len, bool cancel_seek)
+tune_status (struct si4735_tune_status *buf, const bool cancel_seek)
 {
 	static struct {
 		uint8_t cmd;
 		uint8_t flags;
 	} c;
 
-	c.cmd   = fm ? 0x22 : 0x42;
-	c.flags = cancel_seek ? 0x02 : 0x00;
+	if (mode == SI4735_MODE_DOWN)
+		return false;
+
+	c.cmd   = mode == SI4735_MODE_FM ? 0x22 : 0x42;
+	c.flags = cancel_seek << 1;
 
 	write(&c.cmd, sizeof(c));
-	if (!read_long(buf, len))
-		return false;
-
-	return true;
-}
-
-bool
-si4735_fm_tune_status (struct si4735_tune_status *buf)
-{
-	if (!tune_status(true, buf, sizeof(*buf), false))
-		return false;
-
-	bswap16(&buf->freq);
-	return true;
-}
-
-bool
-si4735_am_tune_status (struct si4735_tune_status *buf)
-{
-	if (!tune_status(false, buf, sizeof(*buf), false))
-		return false;
-
-	bswap16(&buf->freq);
-	bswap16(&buf->am.readantcap);
-	return true;
-}
-
-bool
-si4735_sw_tune_status (struct si4735_tune_status *buf)
-	__attribute__((alias ("si4735_am_tune_status")));
-
-bool
-si4735_fm_seek_cancel (void)
-{
-	struct si4735_tune_status buf;
-	return tune_status(true, &buf, sizeof(buf), true);
-}
-
-bool
-si4735_am_seek_cancel (void)
-{
-	struct si4735_tune_status buf;
-	return tune_status(false, &buf, sizeof(buf), true);
-}
-
-bool
-si4735_sw_seek_cancel (void)
-	__attribute__((alias ("si4735_am_seek_cancel")));
-
-static bool
-rsq_status (bool fm, struct si4735_rsq_status *buf)
-{
-	uint8_t cmd = fm ? 0x23 : 0x43;
-	write(&cmd, sizeof(cmd));
 	return read_long((uint8_t *)buf, sizeof(*buf));
 }
 
 bool
-si4735_fm_rsq_status (struct si4735_rsq_status *buf)
+si4735_tune_status (struct si4735_tune_status *buf)
 {
-	return rsq_status(true, buf);
+	if (!tune_status(buf, false))
+		return false;
+
+	if (mode == SI4735_MODE_AM)
+		bswap16(&buf->am.readantcap);
+
+	bswap16(&buf->freq);
+	return true;
 }
 
 bool
-si4735_am_rsq_status (struct si4735_rsq_status *buf)
+si4735_seek_cancel (void)
 {
-	return rsq_status(false, buf);
+	struct si4735_tune_status buf;
+
+	return tune_status(&buf, true);
 }
 
 bool
-si4735_sw_rsq_status (struct si4735_rsq_status *buf)
-	__attribute__((alias ("si4735_am_rsq_status")));
+si4735_rsq_status (struct si4735_rsq_status *buf)
+{
+	if (mode == SI4735_MODE_DOWN)
+		return false;
+
+	const uint8_t cmd = mode == SI4735_MODE_FM ? 0x23 : 0x43;
+
+	write(&cmd, sizeof(cmd));
+	return read_long((uint8_t *)buf, sizeof(*buf));
+}
 
 static bool
 power_up (uint8_t *cmd, uint8_t len)
@@ -320,26 +262,37 @@ bool
 si4735_fm_power_up (void)
 {
 	static uint8_t cmd[] = { 0x01, 0x50, 0x05 };
-	return power_up(cmd, sizeof(cmd));
+
+	if (!power_up(cmd, sizeof(cmd)))
+		return false;
+
+	mode = SI4735_MODE_FM;
+	return true;
 }
 
 bool
 si4735_am_power_up (void)
 {
 	static uint8_t cmd[] = { 0x01, 0x51, 0x05 };
-	return power_up(cmd, sizeof(cmd));
-}
 
-bool
-si4735_sw_power_up (void)
-	__attribute__((alias ("si4735_am_power_up")));
+	if (!power_up(cmd, sizeof(cmd)))
+		return false;
+
+	mode = SI4735_MODE_AM;
+	return true;
+}
 
 bool
 si4735_power_down (void)
 {
 	static uint8_t cmd[] = { 0x11 };
 	write(cmd, sizeof(cmd));
-	return !(read_status() & 0x40);
+
+	if (read_status() & 0x40)
+		return false;
+
+	mode = SI4735_MODE_DOWN;
+	return true;
 }
 
 bool
