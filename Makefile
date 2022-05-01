@@ -9,19 +9,18 @@ F_CPU	 = 16000000
 
 TARGET	 = radiuno
 
-COMMON_FLAGS  = -Os -std=c99 -g
+COMMON_FLAGS  = -Os -std=c99 -flto -g
 COMMON_FLAGS += -DF_CPU=$(F_CPU)UL -mmcu=$(MCU)
 
 CFLAGS	 = $(COMMON_FLAGS)
 CFLAGS	+= -funsigned-char -funsigned-bitfields -fpack-struct -fshort-enums
-CFLAGS	+= -Wall -Wstrict-prototypes -Wa,-adhlns=$(<:.c=.lst)
+CFLAGS	+= -Wall -Wstrict-prototypes
 
 LDFLAGS	 = $(COMMON_FLAGS)
 LDFLAGS	+= -Wl,-Map=$(TARGET).map,--cref
 
 SRCS	 = $(wildcard src/*.c)
 OBJS	 = $(SRCS:.c=.o)
-LSTS	 = $(SRCS:.c=.lst)
 
 .PHONY: clean flash
 
@@ -39,4 +38,4 @@ flash: $(TARGET).hex
 	picocom -b 115200 /dev/ttyACM0 || true
 
 clean:
-	$(RM) $(OBJS) $(LSTS) $(TARGET).hex $(TARGET).elf $(TARGET).map
+	$(RM) $(OBJS) $(TARGET).hex $(TARGET).elf $(TARGET).map
