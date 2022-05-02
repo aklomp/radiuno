@@ -19,21 +19,13 @@
 extern uint8_t _binary_src_banner_txt_start;
 extern uint8_t _binary_src_banner_txt_end;
 
-// Current chip mode:
-enum mode {
-	MODE_FM,
-	MODE_AM,
-	MODE_SW,
-	MODE_DOWN,
-};
-
 static struct {
-	enum mode			mode;
+	enum cmd_band			band;
 	struct si4735_tune_status	tune;
 	volatile bool			timer_tick;
 }
 state = {
-	.mode = MODE_DOWN,
+	.band = CMD_BAND_NONE,
 };
 
 ISR (TIMER0_OVF_vect)
@@ -83,20 +75,21 @@ print_revision (void)
 }
 
 static bool
-power_up (const enum mode mode)
+power_up (const enum cmd_band band)
 {
-	switch (mode) {
-	case MODE_FM: return si4735_fm_power_up();
-	case MODE_AM: return si4735_am_power_up();
-	case MODE_SW: return si4735_am_power_up();
-	default     : return false;
+	switch (band) {
+	case CMD_BAND_AM:
+	case CMD_BAND_SW:
+	case CMD_BAND_LW: return si4735_am_power_up();
+	case CMD_BAND_FM: return si4735_fm_power_up();
+	default         : return false;
 	}
 }
 
 static bool
 freq_set (const uint16_t freq)
 {
-	if (!si4735_freq_set(freq, false, false, state.mode == MODE_SW))
+	if (!si4735_freq_set(freq, false, false, state.band == CMD_BAND_SW))
 		return false;
 
 	// If the command was successful, wait for STCINT to become set,
@@ -125,16 +118,17 @@ freq_nudge (bool up)
 static bool
 cmd_mode (struct args *args, bool help)
 {
-	static const char PROGMEM sub[][3] = { "fm", "am", "sw" };
+	static const char PROGMEM sub[][3] = { "fm", "am", "sw", "lw" };
 
 	static const struct {
-		const char	*cmd;
-		enum mode	 mode;
+		const char   *cmd;
+		enum cmd_band band;
 	}
 	map[] = {
-		{ sub[0], MODE_FM },
-		{ sub[1], MODE_AM },
-		{ sub[2], MODE_SW },
+		{ sub[0], CMD_BAND_FM },
+		{ sub[1], CMD_BAND_AM },
+		{ sub[2], CMD_BAND_SW },
+		{ sub[3], CMD_BAND_LW },
 	};
 
 	// Handle help function and insufficient args:
@@ -148,30 +142,30 @@ cmd_mode (struct args *args, bool help)
 		if (strncasecmp_P(args->av[1], m->cmd, 2))
 			continue;
 
-		// If already in desired mode, ignore:
-		if (state.mode == m->mode)
+		// If already in the desired band, ignore.
+		if (state.band == m->band)
 			return true;
 
 		// Power down the chip if not already down:
-		if (state.mode != MODE_DOWN)
+		if (state.band != CMD_BAND_NONE)
 			if (!si4735_power_down())
 				return false;
 
 		// Power up the chip in new mode:
-		if (!power_up(m->mode))
+		if (!power_up(m->band))
 			return false;
 
 		// Print chip revision data:
 		print_revision();
 
 		// For SW, set non-default band limits:
-		if (m->mode == MODE_SW) {
+		if (m->band == CMD_BAND_SW) {
 			si4735_prop_set(0x3400, 1711);
 			si4735_prop_set(0x3401, 27000);
 		}
 
 		state.tune.freq = 0;
-		state.mode = m->mode;
+		state.band = m->band;
 		return true;
 	}
 
@@ -195,7 +189,7 @@ cmd_info (struct args *args, bool help)
 		"readantcap : %u\n";
 
 	// Only valid in powerup state:
-	if (state.mode == MODE_DOWN)
+	if (state.band == CMD_BAND_NONE)
 		return false;
 
 	if (help) {
@@ -215,7 +209,7 @@ cmd_info (struct args *args, bool help)
 		state.tune.freq, state.tune.rssi, state.tune.snr);
 
 	// Print band-specific info.
-	if (state.mode == MODE_FM) {
+	if (state.band == CMD_BAND_FM) {
 		uart_printf_P(str_fm, state.tune.fm.mult, state.tune.fm.readantcap);
 	} else {
 		uart_printf_P(str_am, state.tune.am.readantcap);
@@ -325,7 +319,7 @@ cmd_seek (struct args *args, bool help)
 	};
 
 	// Only valid in powerup mode:
-	if (state.mode == MODE_DOWN)
+	if (state.band == CMD_BAND_NONE)
 		return false;
 
 	// Handle help function and insufficient args:
@@ -339,7 +333,7 @@ cmd_seek (struct args *args, bool help)
 		if (strncasecmp_P(args->av[1], m->cmd, m->len))
 			continue;
 
-		if (!si4735_seek_start(m->up, true, state.mode == MODE_SW))
+		if (!si4735_seek_start(m->up, true, state.band == CMD_BAND_SW))
 			return false;
 
 		seek_status();
@@ -355,7 +349,7 @@ cmd_tune (struct args *args, bool help)
 	int freq;
 
 	// Only valid in powerup mode:
-	if (state.mode == MODE_DOWN)
+	if (state.band == CMD_BAND_NONE)
 		return false;
 
 	// Handle help function and insufficient args:
@@ -415,21 +409,23 @@ static void
 prompt (void)
 {
 	static const char PROGMEM prompt_none[][6] = {
-		[MODE_FM]   = "fm > ",
-		[MODE_AM]   = "am > ",
-		[MODE_SW]   = "sw > ",
-		[MODE_DOWN] = "-- > ",
+		[CMD_BAND_FM]   = "fm > ",
+		[CMD_BAND_AM]   = "am > ",
+		[CMD_BAND_SW]   = "sw > ",
+		[CMD_BAND_LW]   = "lw > ",
+		[CMD_BAND_NONE] = "-- > ",
 	};
 
 	static const char PROGMEM prompt_freq[][9] = {
-		[MODE_FM] = "fm %u > ",
-		[MODE_AM] = "am %u > ",
-		[MODE_SW] = "sw %u > ",
+		[CMD_BAND_FM] = "fm %u > ",
+		[CMD_BAND_AM] = "am %u > ",
+		[CMD_BAND_SW] = "sw %u > ",
+		[CMD_BAND_LW] = "lw %u > ",
 	};
 
 	(si4735_tune_status(&state.tune) && state.tune.freq)
-		? uart_printf_P(prompt_freq[state.mode], state.tune.freq)
-		: uart_printf_P(prompt_none[state.mode]);
+		? uart_printf_P(prompt_freq[state.band], state.tune.freq)
+		: uart_printf_P(prompt_none[state.band]);
 }
 
 // Parse a zero-terminated commandline
