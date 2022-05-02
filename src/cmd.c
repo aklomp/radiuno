@@ -11,9 +11,7 @@
 #include "cmd.h"
 #include "si4735.h"
 #include "uart.h"
-
-#define STRIDE(n)	(sizeof((n)[0]))
-#define COUNT(n)	(sizeof(n) / STRIDE(n))
+#include "util.h"
 
 // Current chip mode:
 enum mode {
@@ -135,17 +133,17 @@ cmd_mode (struct args *args, bool help)
 
 	// Handle help function and insufficient args:
 	if (help || args->ac < 2) {
-		print_help(args->av[0], map, COUNT(map), STRIDE(map));
+		print_help(args->av[0], map, NELEM(map), STRIDE(map));
 		return help;
 	}
 
-	// Handle subcommands:
-	for (uint8_t i = 0; i < COUNT(map); i++) {
-		if (strncasecmp_P(args->av[1], map[i].cmd, 2))
+	// Handle subcommands.
+	FOREACH (map, m) {
+		if (strncasecmp_P(args->av[1], m->cmd, 2))
 			continue;
 
 		// If already in desired mode, ignore:
-		if (state.mode == map[i].mode)
+		if (state.mode == m->mode)
 			return true;
 
 		// Power down the chip if not already down:
@@ -154,20 +152,20 @@ cmd_mode (struct args *args, bool help)
 				return false;
 
 		// Power up the chip in new mode:
-		if (!power_up(map[i].mode))
+		if (!power_up(m->mode))
 			return false;
 
 		// Print chip revision data:
 		print_revision();
 
 		// For SW, set non-default band limits:
-		if (map[i].mode == MODE_SW) {
+		if (m->mode == MODE_SW) {
 			si4735_prop_set(0x3400, 1711);
 			si4735_prop_set(0x3401, 27000);
 		}
 
 		state.tune.freq = 0;
-		state.mode = map[i].mode;
+		state.mode = m->mode;
 		return true;
 	}
 
@@ -326,16 +324,16 @@ cmd_seek (struct args *args, bool help)
 
 	// Handle help function and insufficient args:
 	if (help || args->ac < 2) {
-		print_help(args->av[0], map, COUNT(map), STRIDE(map));
+		print_help(args->av[0], map, NELEM(map), STRIDE(map));
 		return help;
 	}
 
-	// Handle subcommands:
-	for (uint8_t i = 0; !help && i < COUNT(map); i++) {
-		if (strncasecmp_P(args->av[1], map[i].cmd, map[i].len))
+	// Handle subcommands.
+	FOREACH (map, m) {
+		if (strncasecmp_P(args->av[1], m->cmd, m->len))
 			continue;
 
-		if (!si4735_seek_start(map[i].up, true, state.mode == MODE_SW))
+		if (!si4735_seek_start(m->up, true, state.mode == MODE_SW))
 			return false;
 
 		seek_status();
@@ -398,10 +396,10 @@ cmd_help (struct args *args, bool help)
 		return true;
 	}
 
-	// Call all toplevel handlers in help mode:
-	for (uint8_t i = 0; i < COUNT(map); i++) {
-		args->av[0] = map[i].cmd;
-		map[i].handler(args, true);
+	// Call all toplevel handlers in help mode.
+	FOREACH (map, m) {
+		args->av[0] = m->cmd;
+		m->handler(args, true);
 	}
 
 	return true;
@@ -438,13 +436,15 @@ cmd_exec (struct args *args)
 	uart_printf("\n");
 
 	// Try to match a command.
-	for (uint8_t i = 0; args->ac && i < COUNT(map); i++) {
-		if (strcasecmp(args->av[0], map[i].cmd) == 0) {
-			args->av[0] = map[i].cmd;
-			if (!map[i].handler(args, false)) {
-				uart_printf_P(failed);
+	if (args->ac) {
+		FOREACH (map, m) {
+			if (strcasecmp(args->av[0], m->cmd) == 0) {
+				args->av[0] = m->cmd;
+				if (!m->handler(args, false)) {
+					uart_printf_P(failed);
+				}
+				break;
 			}
-			break;
 		}
 	}
 
