@@ -3,6 +3,7 @@
 
 #include "readline.h"
 #include "uart.h"
+#include "util.h"
 
 // Size of the line buffer:
 #define LINESIZE	40
@@ -101,7 +102,7 @@ find_key (const uint8_t c, int8_t *idx, const int8_t pos)
 
 	// If character is greater than current index, seek down:
 	else {
-		for (int8_t i = *idx + 1; i < sizeof(keys) / sizeof(keys[0]); i++) {
+		for (int8_t i = *idx + 1; i < NELEM(keys); i++) {
 			if (key_matches(c, i, pos)) {
 				*idx = i;
 				return true;
