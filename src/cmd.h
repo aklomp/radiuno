@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stdbool.h>
+#include <stdint.h>
 
 #include "args.h"
 #include "si4735.h"
@@ -39,6 +40,7 @@ struct cmd {
 // Pointer to the first command in the linked list.
 extern struct cmd *cmd_list;
 
+extern void cmd_print_help (const char *cmd, const void *map, const uint8_t count, const uint8_t stride);
 extern void cmd_link (struct cmd *cmd);
 extern bool cmd_exec (const struct args *args);
 extern void cmd_init (void);

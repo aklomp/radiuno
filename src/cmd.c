@@ -36,8 +36,8 @@ ISR (TIMER0_OVF_vect)
 	}
 }
 
-static void
-print_help (const char *cmd, const void *map, uint8_t count, uint8_t stride)
+void
+cmd_print_help (const char *cmd, const void *map, const uint8_t count, const uint8_t stride)
 {
 	static const char PROGMEM p1[] = "%s [";
 	static const char PROGMEM p2[] = "%s %p ";
@@ -45,7 +45,7 @@ print_help (const char *cmd, const void *map, uint8_t count, uint8_t stride)
 
 	uart_printf_P(p1, cmd);
 	for (uint8_t i = 0; i < count; map += stride, i++)
-		uart_printf_P(p2, i ? "|" : "", *(const char **)map);
+		uart_printf_P(p2, i ? "|" : "", *(const char **) map);
 	uart_printf_P(p3);
 }
 
@@ -130,7 +130,7 @@ cmd_mode (struct args *args, bool help)
 
 	// Handle help function and insufficient args:
 	if (help || args->ac < 2) {
-		print_help(args->av[0], map, NELEM(map), STRIDE(map));
+		cmd_print_help(args->av[0], map, NELEM(map), STRIDE(map));
 		return help;
 	}
 
@@ -322,7 +322,7 @@ cmd_seek (struct args *args, bool help)
 
 	// Handle help function and insufficient args:
 	if (help || args->ac < 2) {
-		print_help(args->av[0], map, NELEM(map), STRIDE(map));
+		cmd_print_help(args->av[0], map, NELEM(map), STRIDE(map));
 		return help;
 	}
 
