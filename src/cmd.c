@@ -9,7 +9,6 @@
 
 #include "args.h"
 #include "cmd.h"
-#include "si4735.h"
 #include "uart.h"
 #include "util.h"
 
@@ -19,14 +18,11 @@
 extern uint8_t _binary_src_banner_txt_start;
 extern uint8_t _binary_src_banner_txt_end;
 
-static struct {
-	enum cmd_band			band;
-	struct si4735_tune_status	tune;
-	volatile bool			timer_tick;
-}
-state = {
+static struct cmd_state state = {
 	.band = CMD_BAND_NONE,
 };
+
+static volatile bool timer_tick;
 
 ISR (TIMER0_OVF_vect)
 {
@@ -35,7 +31,7 @@ ISR (TIMER0_OVF_vect)
 
 	if (++scale == 3) {
 		scale = 0;
-		state.timer_tick = true;
+		timer_tick = true;
 	}
 }
 
@@ -235,14 +231,14 @@ seek_status (void)
 	for (;;)
 	{
 		// Sleep until a timer tick occurs:
-		while (!state.timer_tick) {
+		while (!timer_tick) {
 			sleep_enable();
 			sleep_cpu();
 			sleep_disable();
 		}
 
 		// Acknowledge timer tick:
-		state.timer_tick = false;
+		timer_tick = false;
 
 		// Get tuning status:
 		if (!si4735_tune_status(&state.tune))
