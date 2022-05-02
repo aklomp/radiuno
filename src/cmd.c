@@ -49,35 +49,6 @@ cmd_print_help (const char *cmd, const void *map, const uint8_t count, const uin
 	uart_printf_P(p3);
 }
 
-static bool
-freq_set (const uint16_t freq)
-{
-	if (!si4735_freq_set(freq, false, false, state.band == CMD_BAND_SW))
-		return false;
-
-	// If the command was successful, wait for STCINT to become set,
-	// indicating that the chip has settled on a frequency.
-	while (si4735_tune_status(&state.tune))
-		if (state.tune.status.STCINT)
-			return true;
-
-	return false;
-}
-
-static bool
-freq_nudge (bool up)
-{
-	uint16_t freq;
-
-	if (state.tune.freq == 0)
-		return false;
-
-	freq = (up) ? state.tune.freq + 1
-	            : state.tune.freq - 1;
-
-	return freq_set(freq);
-}
-
 static void
 seek_status (void)
 {
@@ -201,36 +172,6 @@ cmd_seek (struct args *args, bool help)
 	}
 
 	return false;
-}
-
-__attribute__((used))
-static bool
-cmd_tune (struct args *args, bool help)
-{
-	int freq;
-
-	// Only valid in powerup mode:
-	if (state.band == CMD_BAND_NONE)
-		return false;
-
-	// Handle help function and insufficient args:
-	if (help || args->ac < 2) {
-		uart_printf("%s [ %p | %p | <freq> ]\n", args->av[0], up, dn);
-		return help;
-	}
-
-	// Check if we can match any of the named arguments:
-	if (!strncasecmp_P(args->av[1], up, sizeof(up)))
-		return freq_nudge(true);
-
-	if (!strncasecmp_P(args->av[1], dn, sizeof(dn)))
-		return freq_nudge(false);
-
-	// Primitive conversion:
-	if ((freq = atoi(args->av[1])) <= 0)
-		return false;
-
-	return freq_set(freq);
 }
 
 void
