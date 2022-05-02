@@ -49,40 +49,6 @@ cmd_print_help (const char *cmd, const void *map, const uint8_t count, const uin
 	uart_printf_P(p3);
 }
 
-static void
-print_revision (void)
-{
-	struct si4735_rev rev;
-	static const char PROGMEM fmt[] =
-		"part number        : si47%u\n"
-		"chip revision      : %c\n"
-		"component revision : %c.%c\n"
-		"firmware           : %c.%c\n"
-		"patch id           : %u\n";
-
-	if (si4735_rev_get(&rev) == false)
-		return;
-
-	uart_printf_P(fmt,
-		rev.part_number,
-		rev.chip_rev,
-		rev.cmpmajor, rev.cmpminor,
-		rev.fwmajor, rev.fwminor,
-		rev.patch_id);
-}
-
-static bool
-power_up (const enum cmd_band band)
-{
-	switch (band) {
-	case CMD_BAND_AM:
-	case CMD_BAND_SW:
-	case CMD_BAND_LW: return si4735_am_power_up();
-	case CMD_BAND_FM: return si4735_fm_power_up();
-	default         : return false;
-	}
-}
-
 static bool
 freq_set (const uint16_t freq)
 {
@@ -110,63 +76,6 @@ freq_nudge (bool up)
 	            : state.tune.freq - 1;
 
 	return freq_set(freq);
-}
-
-static bool
-cmd_mode (struct args *args, bool help)
-{
-	static const char PROGMEM sub[][3] = { "fm", "am", "sw", "lw" };
-
-	static const struct {
-		const char   *cmd;
-		enum cmd_band band;
-	}
-	map[] = {
-		{ sub[0], CMD_BAND_FM },
-		{ sub[1], CMD_BAND_AM },
-		{ sub[2], CMD_BAND_SW },
-		{ sub[3], CMD_BAND_LW },
-	};
-
-	// Handle help function and insufficient args:
-	if (help || args->ac < 2) {
-		cmd_print_help(args->av[0], map, NELEM(map), STRIDE(map));
-		return help;
-	}
-
-	// Handle subcommands.
-	FOREACH (map, m) {
-		if (strncasecmp_P(args->av[1], m->cmd, 2))
-			continue;
-
-		// If already in the desired band, ignore.
-		if (state.band == m->band)
-			return true;
-
-		// Power down the chip if not already down:
-		if (state.band != CMD_BAND_NONE)
-			if (!si4735_power_down())
-				return false;
-
-		// Power up the chip in new mode:
-		if (!power_up(m->band))
-			return false;
-
-		// Print chip revision data:
-		print_revision();
-
-		// For SW, set non-default band limits:
-		if (m->band == CMD_BAND_SW) {
-			si4735_prop_set(0x3400, 1711);
-			si4735_prop_set(0x3401, 27000);
-		}
-
-		state.tune.freq = 0;
-		state.band = m->band;
-		return true;
-	}
-
-	return false;
 }
 
 __attribute__((used))
@@ -478,7 +387,7 @@ cmd_init (void)
 {
 	banner();
 
-	if (cmd_mode(&(struct args) { .ac = 2, .av =  { NULL, "fm" } }, false))
+	if (cmd_exec(&(struct args) { .ac = 2, .av = { "mode", "fm" } }))
 	       cmd_seek(&(struct args) { .ac = 2, .av = { NULL, "up" } }, false);
 
 	prompt();
