@@ -13,6 +13,12 @@
 #include "uart.h"
 #include "util.h"
 
+// Forward declaration of the program banner symbols.
+// Logo source:
+//   http://patorjk.com/software/taag/#p=display&f=Doom&t=Radiuno
+extern uint8_t _binary_src_banner_txt_start;
+extern uint8_t _binary_src_banner_txt_end;
+
 // Current chip mode:
 enum mode {
 	MODE_FM,
@@ -454,18 +460,13 @@ cmd_exec (struct args *args)
 static void
 banner (void)
 {
-	// http://patorjk.com/software/taag/#p=display&f=Doom&t=Radiuno
-	static const char PROGMEM banner[] =
-		"\n"
-		"______          _ _\n"
-		"| ___ \\        | (_)\n"
-		"| |_/ /__ _  __| |_ _   _ _ __   ___\n"
-		"|    // _` |/ _` | | | | | '_ \\ / _ \\\n"
-		"| |\\ \\ (_| | (_| | | |_| | | | | (_) |\n"
-		"\\_| \\_\\__,_|\\__,_|_|\\__,_|_| |_|\\___/\n"
-		"\n";
+	// Print all bytes of the banner, converting \n to \r\n on the fly.
+	for (uint8_t c, i = 0; i < &_binary_src_banner_txt_end - &_binary_src_banner_txt_start; i++) {
+		if ((c = pgm_read_byte(&_binary_src_banner_txt_start + i)) == '\n')
+			uart_putc('\r');
 
-	uart_printf_P(banner);
+		uart_putc(c);
+	}
 }
 
 void

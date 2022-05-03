@@ -21,6 +21,7 @@ LDFLAGS	+= -Wl,-Map=$(TARGET).map,--cref
 
 SRCS	 = $(wildcard src/*.c)
 OBJS	 = $(SRCS:.c=.o)
+OBJS	+= src/banner.o
 
 .PHONY: clean flash
 
@@ -29,6 +30,9 @@ $(TARGET).hex: $(TARGET).elf
 
 $(TARGET).elf: $(OBJS)
 	$(CC) $(LDFLAGS) -o $@ $^
+
+src/banner.o: src/banner.txt
+	$(OBJCOPY) -I binary -O elf32-avr --rename-section .data=.progmem.data $^ $@
 
 %.o: %.c
 	$(CC) $(CFLAGS) -o $@ -c $^
