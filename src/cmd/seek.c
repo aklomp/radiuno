@@ -140,17 +140,11 @@ seek_status (struct cmd_state *state)
 }
 
 static bool
-on_call (const struct args *args, struct cmd_state *state)
+dispatch (const struct args *args, struct cmd_state *state)
 {
-	// Only valid in powerup mode.
-	if (state->band == CMD_BAND_NONE)
+	// A subcommand is required.
+	if (args->ac < 2)
 		return false;
-
-	// Handle insufficient arguments.
-	if (args->ac < 2) {
-		on_help();
-		return false;
-	}
 
 	// Handle subcommands.
 	FOREACH (map, m) {
@@ -164,6 +158,19 @@ on_call (const struct args *args, struct cmd_state *state)
 		return true;
 	}
 
+	return false;
+}
+
+static bool
+on_call (const struct args *args, struct cmd_state *state)
+{
+	if (state->band == CMD_BAND_NONE)
+		return false;
+
+	if (dispatch(args, state))
+		return true;
+
+	on_help();
 	return false;
 }
 
