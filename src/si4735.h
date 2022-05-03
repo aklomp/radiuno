@@ -37,7 +37,12 @@ struct si4735_rev {
 
 struct si4735_tune_status {
 	struct si4735_status status;
-	uint8_t  flags;
+	struct {
+		uint8_t VALID : 1;	// Valid channel
+		uint8_t AFCRL : 1;	// AFC Rail indicator
+		uint8_t pad   : 5;	// Reserved padding
+		uint8_t BLTF  : 1;	// Band limit
+	} flags;
 	uint16_t freq;
 	uint8_t  rssi;
 	uint8_t  snr;

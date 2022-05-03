@@ -110,7 +110,7 @@ seek_status (struct cmd_state *state)
 		if (state->tune.status.STCINT) {
 
 			// Check if we found a valid station.
-			if (state->tune.flags & 0x01) {
+			if (state->tune.flags.VALID) {
 				static const char PROGMEM fmt[] =
 					"\rValid station: %u, rssi: %u, snr: %u\n";
 
@@ -121,7 +121,7 @@ seek_status (struct cmd_state *state)
 			}
 
 			// Check if we wrapped.
-			if (state->tune.flags & 0x80) {
+			if (state->tune.flags.BLTF) {
 				static const char PROGMEM fmt[] =
 					"\rWrapped: %u, rssi: %u, snr: %u\n";
 
