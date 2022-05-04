@@ -47,6 +47,29 @@ ISR (TIMER0_OVF_vect)
 	}
 }
 
+// Sleep until a timer tick occurs.
+static void
+wait_for_tick (void)
+{
+	for (;;) {
+
+		// Check atomically if the flag is set.
+		cli();
+		if (timer_tick) {
+			timer_tick = false;
+			sei();
+			return;
+		}
+
+		// Sleep until woken by an interrupt.
+		set_sleep_mode(SLEEP_MODE_IDLE);
+		sleep_enable();
+		sei();
+		sleep_cpu();
+		sleep_disable();
+	}
+}
+
 static void
 seek_status (struct cmd_state *state)
 {
@@ -64,14 +87,7 @@ seek_status (struct cmd_state *state)
 	for (;;) {
 
 		// Sleep until a timer tick occurs.
-		while (!timer_tick) {
-			sleep_enable();
-			sleep_cpu();
-			sleep_disable();
-		}
-
-		// Acknowledge the timer tick.
-		timer_tick = false;
+		wait_for_tick();
 
 		// Get tuning status.
 		if (!si4735_tune_status(&state->tune))
@@ -136,7 +152,7 @@ seek_status (struct cmd_state *state)
 	}
 
 	// Disable interrupt.
-	TIMSK0 = 0;
+	TIMSK0 &= ~_BV(TOIE0);
 }
 
 static bool
