@@ -70,6 +70,54 @@ wait_for_tick (void)
 	}
 }
 
+static bool
+cancel_seek (struct cmd_state *state)
+{
+	static const char PROGMEM fmt_success[] = "\r\n";
+	static const char PROGMEM fmt_failure[] = "\rSeek: failed to cancel.\n";
+
+	// Cancel the seek.
+	if (!si4735_seek_cancel()) {
+		uart_printf_P(fmt_failure);
+		return false;
+	}
+
+	// Wait for STCINT to become set, indicating that the chip stopped
+	// seeking and has settled on a station.
+	while (!state->tune.status.STCINT)
+		if (!si4735_tune_status(&state->tune))
+			break;
+
+	uart_printf_P(fmt_success);
+	return true;
+}
+
+static void
+finish_seek (struct cmd_state *state)
+{
+	// Check if a valid station was found.
+	if (state->tune.flags.VALID) {
+		static const char PROGMEM fmt[] =
+			"\rValid station: %u, rssi: %u, snr: %u\n";
+
+		uart_printf_P(fmt,
+			state->tune.freq,
+			state->tune.rssi,
+			state->tune.snr);
+	}
+
+	// Check if we wrapped.
+	if (state->tune.flags.BLTF) {
+		static const char PROGMEM fmt[] =
+			"\rWrapped: %u, rssi: %u, snr: %u\n";
+
+		uart_printf_P(fmt,
+			state->tune.freq,
+			state->tune.rssi,
+			state->tune.snr);
+	}
+}
+
 static void
 seek_status (struct cmd_state *state)
 {
@@ -78,10 +126,10 @@ seek_status (struct cmd_state *state)
 	TCCR0B = _BV(CS02) | _BV(CS00);
 	TIMSK0 = _BV(TOIE0);
 
-	// Clear End-of-Text flag (Ctrl-C) by reading it.
+	// Clear the End-of-Text flag (Ctrl-C) by reading it.
 	uart_flag_etx();
 
-	// Loop until we found a station.
+	// Loop until a station is found.
 	for (;;) {
 
 		// Sleep until a timer tick occurs.
@@ -95,51 +143,13 @@ seek_status (struct cmd_state *state)
 		uart_printf("\r%u ", state->tune.freq);
 
 		// Quit on End-of-Text (Ctrl-C).
-		if (uart_flag_etx()) {
-			static const char PROGMEM fmt_success[] = "\r\n";
-			static const char PROGMEM fmt_failure[] = "\rSeek: failed to cancel.\n";
+		if (uart_flag_etx())
+			if (cancel_seek(state))
+				break;
 
-			// Cancel the seek.
-			if (!si4735_seek_cancel()) {
-				uart_printf_P(fmt_failure);
-				continue;
-			}
-
-			// Wait for STCINT to become set, indicating that the
-			// chip stopped seeking and has settled on a station.
-			while (!state->tune.status.STCINT)
-				if (!si4735_tune_status(&state->tune))
-					break;
-
-			uart_printf_P(fmt_success);
-			break;
-		}
-
-		// If STCINT flag is set, seek has finished.
+		// If the STCINT flag is set, the seek has finished.
 		if (state->tune.status.STCINT) {
-
-			// Check if we found a valid station.
-			if (state->tune.flags.VALID) {
-				static const char PROGMEM fmt[] =
-					"\rValid station: %u, rssi: %u, snr: %u\n";
-
-				uart_printf_P(fmt,
-					state->tune.freq,
-					state->tune.rssi,
-					state->tune.snr);
-			}
-
-			// Check if we wrapped.
-			if (state->tune.flags.BLTF) {
-				static const char PROGMEM fmt[] =
-					"\rWrapped: %u, rssi: %u, snr: %u\n";
-
-				uart_printf_P(fmt,
-					state->tune.freq,
-					state->tune.rssi,
-					state->tune.snr);
-			}
-
+			finish_seek(state);
 			break;
 		}
 	}
