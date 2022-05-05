@@ -261,45 +261,65 @@ si4735_rsq_status (struct si4735_rsq_status *buf)
 }
 
 static bool
-power_up (uint8_t *cmd, uint8_t len)
+power_up (const enum si4735_mode new_mode)
 {
-	struct si4735_status status;
+	static struct si4735_status status;
+	static struct {
+		uint8_t cmd;
+		struct {
+			uint8_t FUNC    : 4;
+			uint8_t XOSCEN  : 1;
+			uint8_t PATCH   : 1;
+			uint8_t GPO2OEN : 1;
+			uint8_t CTSIEN  : 1;
+		};
+		uint8_t opmode;
+	}
+	c = {
+		.cmd    = SI4735_CMD_POWER_UP,
+		.XOSCEN = 1,
+		.opmode = SI4735_CMD_POWER_UP_OPMODE_ANALOG_OUT,
+	};
 
-	write(cmd, len);
+	switch (new_mode) {
+	case SI4735_MODE_FM:
+		c.FUNC = SI4735_CMD_POWER_UP_FUNC_FM_RECV;
+		break;
 
-	// The chip will send 0x80 once to confirm reception:
+	case SI4735_MODE_AM:
+		c.FUNC = SI4735_CMD_POWER_UP_FUNC_AM_RECV;
+		break;
+
+	default:
+		return false;
+	}
+
+	write(&c.cmd, sizeof (c));
+
+	// The chip will send 0x80 once to confirm reception.
 	read_status();
 
-	// It returns 0x00 until powerup is done:
+	// It returns 0x00 until powerup is done.
 	while ((status = read_status()).raw == 0x00)
 		continue;
 
-	// Return error flag:
-	return !status.ERR;
+	if (status.ERR)
+		return false;
+
+	mode = new_mode;
+	return true;
 }
 
 bool
 si4735_fm_power_up (void)
 {
-	static uint8_t cmd[] = { SI4735_CMD_POWER_UP, 0x50, 0x05 };
-
-	if (!power_up(cmd, sizeof(cmd)))
-		return false;
-
-	mode = SI4735_MODE_FM;
-	return true;
+	return power_up(SI4735_MODE_FM);
 }
 
 bool
 si4735_am_power_up (void)
 {
-	static uint8_t cmd[] = { SI4735_CMD_POWER_UP, 0x51, 0x05 };
-
-	if (!power_up(cmd, sizeof(cmd)))
-		return false;
-
-	mode = SI4735_MODE_AM;
-	return true;
+	return power_up(SI4735_MODE_AM);
 }
 
 bool
