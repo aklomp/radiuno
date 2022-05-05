@@ -211,7 +211,11 @@ tune_status (struct si4735_tune_status *buf, const bool cancel_seek)
 {
 	static struct {
 		uint8_t cmd;
-		uint8_t flags;
+		struct {
+			uint8_t INTACK : 1;
+			uint8_t CANCEL : 1;
+			uint8_t pad    : 6;
+		};
 	} c;
 
 	switch (mode) {
@@ -227,7 +231,7 @@ tune_status (struct si4735_tune_status *buf, const bool cancel_seek)
 		return false;
 	}
 
-	c.flags = cancel_seek << 1;
+	c.CANCEL = cancel_seek;
 
 	write(&c.cmd, sizeof(c));
 	return read_long((uint8_t *)buf, sizeof(*buf));
