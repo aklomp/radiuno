@@ -116,20 +116,29 @@ si4735_freq_set (const uint16_t freq, const bool fast, const bool freeze, const 
 {
 	static struct {
 		uint8_t  cmd;
-		uint8_t  flags;
+		struct {
+			uint8_t FAST   : 1;
+			uint8_t FREEZE : 1;	// FM mode only
+			uint8_t pad    : 6;
+		};
 		uint16_t freq;
-		uint16_t antcap;
+		uint16_t antcap;		// 8-bit in FM mode
 	} c;
+	size_t size;
 
 	switch (mode) {
 	case SI4735_MODE_FM:
-		c.cmd   = SI4735_CMD_FM_TUNE_FREQ;
-		c.flags = (freeze << 1) | fast;
+		c.cmd    = SI4735_CMD_FM_TUNE_FREQ;
+		c.FAST   = fast;
+		c.FREEZE = freeze;
+		c.antcap = 0;
+		size     = sizeof (c) - 1;
 		break;
 
 	case SI4735_MODE_AM:
-		c.cmd   = SI4735_CMD_AM_TUNE_FREQ;
-		c.flags = fast;
+		c.cmd    = SI4735_CMD_AM_TUNE_FREQ;
+		c.FAST   = fast;
+		c.FREEZE = 0;
 
 		// For the SW band, the programming guide says that the antenna
 		// capacitance must be set to 1. For other bands (FM/AM/LW), it
@@ -137,6 +146,7 @@ si4735_freq_set (const uint16_t freq, const bool fast, const bool freeze, const 
 		// specific band it is operating in, so that information must
 		// be passed in through a parameter.
 		c.antcap = sw ? __builtin_bswap16(1) : 0;
+		size     = sizeof (c);
 		break;
 
 	default:
@@ -145,7 +155,7 @@ si4735_freq_set (const uint16_t freq, const bool fast, const bool freeze, const 
 
 	c.freq  = __builtin_bswap16(freq);
 
-	write(&c.cmd, sizeof(c));
+	write(&c.cmd, size);
 	return !read_status().ERR;
 }
 
