@@ -3,6 +3,7 @@
 #include <util/delay.h>
 
 #include "si4735.h"
+#include "si4735_cmd.h"
 
 #define PIN_POWER	PORTB0
 #define PIN_RESET	PORTB1
@@ -122,12 +123,12 @@ si4735_freq_set (const uint16_t freq, const bool fast, const bool freeze, const 
 
 	switch (mode) {
 	case SI4735_MODE_FM:
-		c.cmd   = 0x20;
+		c.cmd   = SI4735_CMD_FM_TUNE_FREQ;
 		c.flags = (freeze << 1) | fast;
 		break;
 
 	case SI4735_MODE_AM:
-		c.cmd   = 0x40;
+		c.cmd   = SI4735_CMD_AM_TUNE_FREQ;
 		c.flags = fast;
 
 		// For the SW band, the programming guide says that the antenna
@@ -163,12 +164,12 @@ si4735_seek_start (const bool up, const bool wrap, const bool sw)
 
 	switch (mode) {
 	case SI4735_MODE_FM:
-		c.cmd = 0x21;
+		c.cmd = SI4735_CMD_FM_SEEK_START;
 		size  = sizeof (c) - sizeof (c.am);
 		break;
 
 	case SI4735_MODE_AM:
-		c.cmd = 0x41;
+		c.cmd = SI4735_CMD_AM_SEEK_START;
 		size  = sizeof (c);
 
 		// For the SW band, the programming guide says that the antenna
@@ -197,10 +198,19 @@ tune_status (struct si4735_tune_status *buf, const bool cancel_seek)
 		uint8_t flags;
 	} c;
 
-	if (mode == SI4735_MODE_DOWN)
-		return false;
+	switch (mode) {
+	case SI4735_MODE_FM:
+		c.cmd = SI4735_CMD_FM_TUNE_STATUS;
+		break;
 
-	c.cmd   = mode == SI4735_MODE_FM ? 0x22 : 0x42;
+	case SI4735_MODE_AM:
+		c.cmd = SI4735_CMD_AM_TUNE_STATUS;
+		break;
+
+	default:
+		return false;
+	}
+
 	c.flags = cancel_seek << 1;
 
 	write(&c.cmd, sizeof(c));
@@ -231,10 +241,20 @@ si4735_seek_cancel (void)
 bool
 si4735_rsq_status (struct si4735_rsq_status *buf)
 {
-	if (mode == SI4735_MODE_DOWN)
-		return false;
+	uint8_t cmd;
 
-	const uint8_t cmd = mode == SI4735_MODE_FM ? 0x23 : 0x43;
+	switch (mode) {
+	case SI4735_MODE_FM:
+		cmd = SI4735_CMD_FM_RSQ_STATUS;
+		break;
+
+	case SI4735_MODE_AM:
+		cmd = SI4735_CMD_AM_RSQ_STATUS;
+		break;
+
+	default:
+		return false;
+	}
 
 	write(&cmd, sizeof(cmd));
 	return read_long((uint8_t *)buf, sizeof(*buf));
@@ -261,7 +281,7 @@ power_up (uint8_t *cmd, uint8_t len)
 bool
 si4735_fm_power_up (void)
 {
-	static uint8_t cmd[] = { 0x01, 0x50, 0x05 };
+	static uint8_t cmd[] = { SI4735_CMD_POWER_UP, 0x50, 0x05 };
 
 	if (!power_up(cmd, sizeof(cmd)))
 		return false;
@@ -273,7 +293,7 @@ si4735_fm_power_up (void)
 bool
 si4735_am_power_up (void)
 {
-	static uint8_t cmd[] = { 0x01, 0x51, 0x05 };
+	static uint8_t cmd[] = { SI4735_CMD_POWER_UP, 0x51, 0x05 };
 
 	if (!power_up(cmd, sizeof(cmd)))
 		return false;
@@ -285,7 +305,8 @@ si4735_am_power_up (void)
 bool
 si4735_power_down (void)
 {
-	static uint8_t cmd[] = { 0x11 };
+	static uint8_t cmd[] = { SI4735_CMD_POWER_DOWN };
+
 	write(cmd, sizeof(cmd));
 
 	if (read_status().ERR)
@@ -305,7 +326,7 @@ si4735_prop_set (uint16_t prop, uint16_t val)
 		uint16_t val;
 	}
 	c = {
-		.cmd = 0x12,
+		.cmd = SI4735_CMD_SET_PROPERTY,
 	};
 
 	c.prop = __builtin_bswap16(prop);
@@ -324,7 +345,7 @@ si4735_prop_get (uint16_t prop, uint16_t *val)
 		uint16_t prop;
 	}
 	c = {
-		.cmd = 0x13,
+		.cmd = SI4735_CMD_GET_PROPERTY,
 	};
 	uint8_t buf[4];
 
@@ -342,7 +363,7 @@ si4735_prop_get (uint16_t prop, uint16_t *val)
 bool
 si4735_rev_get (struct si4735_rev *buf)
 {
-	static uint8_t cmd[] = { 0x10 };
+	static uint8_t cmd[] = { SI4735_CMD_GET_REV };
 	write(cmd, sizeof(cmd));
 	if (!read_long((uint8_t *)buf, sizeof(*buf)))
 		return false;
