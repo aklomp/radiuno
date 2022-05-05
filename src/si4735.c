@@ -261,23 +261,32 @@ si4735_seek_cancel (void)
 bool
 si4735_rsq_status (struct si4735_rsq_status *buf)
 {
-	uint8_t cmd;
+	static struct {
+		uint8_t cmd;
+		struct {
+			uint8_t INTACK : 1;
+			uint8_t pad    : 7;
+		};
+	} c;
+	size_t size;
 
 	switch (mode) {
 	case SI4735_MODE_FM:
-		cmd = SI4735_CMD_FM_RSQ_STATUS;
+		c.cmd = SI4735_CMD_FM_RSQ_STATUS;
+		size  = sizeof (*buf);
 		break;
 
 	case SI4735_MODE_AM:
-		cmd = SI4735_CMD_AM_RSQ_STATUS;
+		c.cmd = SI4735_CMD_AM_RSQ_STATUS;
+		size  = sizeof (*buf) - sizeof (buf->fm);
 		break;
 
 	default:
 		return false;
 	}
 
-	write(&cmd, sizeof(cmd));
-	return read_long((uint8_t *)buf, sizeof(*buf));
+	write(&c.cmd, sizeof (c.cmd));
+	return read_long((uint8_t *) buf, size);
 }
 
 static bool
