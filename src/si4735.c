@@ -154,7 +154,12 @@ si4735_seek_start (const bool up, const bool wrap, const bool sw)
 {
 	static struct {
 		uint8_t cmd;
-		uint8_t flags;
+		struct {
+			uint8_t pad0   : 2;
+			uint8_t WRAP   : 1;
+			uint8_t SEEKUP : 1;
+			uint8_t pad1   : 4;
+		};
 		struct {
 			uint16_t unused;	// AM/SW/LW only
 			uint16_t antcap;	// AM/SW/LW only
@@ -184,7 +189,8 @@ si4735_seek_start (const bool up, const bool wrap, const bool sw)
 		return false;
 	}
 
-	c.flags = (up << 3) | (wrap << 2);
+	c.WRAP   = wrap;
+	c.SEEKUP = up;
 
 	write(&c.cmd, size);
 	return !read_status().ERR;
