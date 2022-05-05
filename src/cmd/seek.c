@@ -73,8 +73,6 @@ wait_for_tick (void)
 static void
 seek_status (struct cmd_state *state)
 {
-	bool first = true;
-
 	// Setup a timer interrupt to periodically update the console.
 	TCCR0A = 0;
 	TCCR0B = _BV(CS02) | _BV(CS00);
@@ -94,12 +92,7 @@ seek_status (struct cmd_state *state)
 			continue;
 
 		// Print current frequency.
-		if (!first)
-			uart_putc('\r');
-		else
-			first = false;
-
-		uart_printf("%u ", state->tune.freq);
+		uart_printf("\r%u ", state->tune.freq);
 
 		// Quit on End-of-Text (Ctrl-C).
 		if (uart_flag_etx()) {
