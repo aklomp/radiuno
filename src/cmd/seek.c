@@ -47,110 +47,123 @@ ISR (TIMER0_OVF_vect)
 	}
 }
 
+// Sleep until a timer tick occurs.
+static void
+wait_for_tick (void)
+{
+	for (;;) {
+
+		// Check atomically if the flag is set.
+		cli();
+		if (timer_tick) {
+			timer_tick = false;
+			sei();
+			return;
+		}
+
+		// Sleep until woken by an interrupt.
+		set_sleep_mode(SLEEP_MODE_IDLE);
+		sleep_enable();
+		sei();
+		sleep_cpu();
+		sleep_disable();
+	}
+}
+
+static bool
+cancel_seek (struct cmd_state *state)
+{
+	static const char PROGMEM fmt_success[] = "\r\n";
+	static const char PROGMEM fmt_failure[] = "\rSeek: failed to cancel.\n";
+
+	// Cancel the seek.
+	if (!si4735_seek_cancel()) {
+		uart_printf_P(fmt_failure);
+		return false;
+	}
+
+	// Wait for STCINT to become set, indicating that the chip stopped
+	// seeking and has settled on a station.
+	while (!state->tune.status.STCINT)
+		if (!si4735_tune_status(&state->tune))
+			break;
+
+	uart_printf_P(fmt_success);
+	return true;
+}
+
+static void
+finish_seek (struct cmd_state *state)
+{
+	// Check if a valid station was found.
+	if (state->tune.flags.VALID) {
+		static const char PROGMEM fmt[] =
+			"\rValid station: %u, rssi: %u, snr: %u\n";
+
+		uart_printf_P(fmt,
+			state->tune.freq,
+			state->tune.rssi,
+			state->tune.snr);
+	}
+
+	// Check if we wrapped.
+	if (state->tune.flags.BLTF) {
+		static const char PROGMEM fmt[] =
+			"\rWrapped: %u, rssi: %u, snr: %u\n";
+
+		uart_printf_P(fmt,
+			state->tune.freq,
+			state->tune.rssi,
+			state->tune.snr);
+	}
+}
+
 static void
 seek_status (struct cmd_state *state)
 {
-	bool first = true;
-
 	// Setup a timer interrupt to periodically update the console.
 	TCCR0A = 0;
 	TCCR0B = _BV(CS02) | _BV(CS00);
 	TIMSK0 = _BV(TOIE0);
 
-	// Clear End-of-Text flag (Ctrl-C) by reading it.
+	// Clear the End-of-Text flag (Ctrl-C) by reading it.
 	uart_flag_etx();
 
-	// Loop until we found a station.
+	// Loop until a station is found.
 	for (;;) {
 
 		// Sleep until a timer tick occurs.
-		while (!timer_tick) {
-			sleep_enable();
-			sleep_cpu();
-			sleep_disable();
-		}
-
-		// Acknowledge the timer tick.
-		timer_tick = false;
+		wait_for_tick();
 
 		// Get tuning status.
 		if (!si4735_tune_status(&state->tune))
 			continue;
 
 		// Print current frequency.
-		if (!first)
-			uart_putc('\r');
-		else
-			first = false;
-
-		uart_printf("%u ", state->tune.freq);
+		uart_printf("\r%u ", state->tune.freq);
 
 		// Quit on End-of-Text (Ctrl-C).
-		if (uart_flag_etx()) {
-			static const char PROGMEM fmt_success[] = "\r\n";
-			static const char PROGMEM fmt_failure[] = "\rSeek: failed to cancel.\n";
+		if (uart_flag_etx())
+			if (cancel_seek(state))
+				break;
 
-			// Cancel the seek.
-			if (!si4735_seek_cancel()) {
-				uart_printf_P(fmt_failure);
-				continue;
-			}
-
-			// Wait for STCINT to become set, indicating that the
-			// chip stopped seeking and has settled on a station.
-			while (!state->tune.status.STCINT)
-				if (!si4735_tune_status(&state->tune))
-					break;
-
-			uart_printf_P(fmt_success);
-			break;
-		}
-
-		// If STCINT flag is set, seek has finished.
+		// If the STCINT flag is set, the seek has finished.
 		if (state->tune.status.STCINT) {
-
-			// Check if we found a valid station.
-			if (state->tune.flags.VALID) {
-				static const char PROGMEM fmt[] =
-					"\rValid station: %u, rssi: %u, snr: %u\n";
-
-				uart_printf_P(fmt,
-					state->tune.freq,
-					state->tune.rssi,
-					state->tune.snr);
-			}
-
-			// Check if we wrapped.
-			if (state->tune.flags.BLTF) {
-				static const char PROGMEM fmt[] =
-					"\rWrapped: %u, rssi: %u, snr: %u\n";
-
-				uart_printf_P(fmt,
-					state->tune.freq,
-					state->tune.rssi,
-					state->tune.snr);
-			}
-
+			finish_seek(state);
 			break;
 		}
 	}
 
 	// Disable interrupt.
-	TIMSK0 = 0;
+	TIMSK0 &= ~_BV(TOIE0);
 }
 
 static bool
-on_call (const struct args *args, struct cmd_state *state)
+dispatch (const struct args *args, struct cmd_state *state)
 {
-	// Only valid in powerup mode.
-	if (state->band == CMD_BAND_NONE)
+	// A subcommand is required.
+	if (args->ac < 2)
 		return false;
-
-	// Handle insufficient arguments.
-	if (args->ac < 2) {
-		on_help();
-		return false;
-	}
 
 	// Handle subcommands.
 	FOREACH (map, m) {
@@ -164,6 +177,19 @@ on_call (const struct args *args, struct cmd_state *state)
 		return true;
 	}
 
+	return false;
+}
+
+static bool
+on_call (const struct args *args, struct cmd_state *state)
+{
+	if (state->band == CMD_BAND_NONE)
+		return false;
+
+	if (dispatch(args, state))
+		return true;
+
+	on_help();
 	return false;
 }
 
