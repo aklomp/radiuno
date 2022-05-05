@@ -42,7 +42,7 @@ struct si4735_tune_status {
 		uint8_t AFCRL : 1;	// AFC Rail indicator
 		uint8_t pad   : 5;	// Reserved padding
 		uint8_t BLTF  : 1;	// Band limit
-	} flags;
+	};
 	uint16_t freq;
 	uint8_t  rssi;
 	uint8_t  snr;

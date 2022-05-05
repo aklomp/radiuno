@@ -233,8 +233,8 @@ tune_status (struct si4735_tune_status *buf, const bool cancel_seek)
 
 	c.CANCEL = cancel_seek;
 
-	write(&c.cmd, sizeof(c));
-	return read_long((uint8_t *)buf, sizeof(*buf));
+	write(&c.cmd, sizeof (c));
+	return read_long((uint8_t *) buf, sizeof (*buf));
 }
 
 bool
