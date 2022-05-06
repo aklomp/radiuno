@@ -38,9 +38,9 @@ on_call (const struct args *args, struct cmd_state *state)
 
 	// Print generic info.
 	uart_printf_P(str,
-		state->tune.flags.BLTF  ? "[Band limit] " : "",
-		state->tune.flags.AFCRL ? "[AFC rail] " : "",
-		state->tune.flags.VALID ? "[Valid]" : "",
+		state->tune.BLTF  ? "[Band limit] " : "",
+		state->tune.AFCRL ? "[AFC rail] " : "",
+		state->tune.VALID ? "[Valid]" : "",
 		state->tune.freq, state->tune.rssi, state->tune.snr);
 
 	// Print band-specific info.

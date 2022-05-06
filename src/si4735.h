@@ -42,7 +42,7 @@ struct si4735_tune_status {
 		uint8_t AFCRL : 1;	// AFC Rail indicator
 		uint8_t pad   : 5;	// Reserved padding
 		uint8_t BLTF  : 1;	// Band limit
-	} flags;
+	};
 	uint16_t freq;
 	uint8_t  rssi;
 	uint8_t  snr;
@@ -59,12 +59,31 @@ struct si4735_tune_status {
 
 struct si4735_rsq_status {
 	struct si4735_status status;
-	uint8_t flags[2];
-	uint8_t stblend;	// Only in FM mode
+	struct {
+		uint16_t RSSILINT : 1;	// RSSI Detect Low
+		uint16_t RSSIHINT : 1;	// RSSI Detect High
+		uint16_t SNRLINT  : 1;	// SNR Detect Low
+		uint16_t SNRHINT  : 1;	// SNR Detect High
+		uint16_t MULTLINT : 1;	// Multipath Detect Low (FM only)
+		uint16_t MULTHINT : 1;	// Multipath Detect High (FM only)
+		uint16_t pad0     : 1;
+		uint16_t BLENDINT : 1;	// Blend Detect (FM only)
+		uint16_t VALID    : 1;	// Valid Channel
+		uint16_t AFCRL    : 1;	// AFC Rail Indicator
+		uint16_t pad1     : 1;
+		uint16_t SMUTE    : 1;	// Soft Mute Indicator
+		uint16_t pad2     : 4;
+	};
+	struct {
+		uint8_t STBLEND   : 7;	// Stereo Blend Indicator (FM only)
+		uint8_t PILOT     : 1;	// Pilot Indicator (FM only)
+	};
 	uint8_t rssi;
 	uint8_t snr;
-	uint8_t mult;		// Only in FM mode
-	uint8_t freqoff;	// Only in FM mode
+	struct {
+		uint8_t mult;		// FM only
+		int8_t  freqoff;	// FM only
+	} fm;
 };
 
 extern void si4735_init (void);
