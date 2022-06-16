@@ -19,9 +19,14 @@ CFLAGS	+= -Wall -Wstrict-prototypes
 LDFLAGS	 = $(COMMON_FLAGS)
 LDFLAGS	+= -Wl,-Map=$(TARGET).map,--cref
 
-SRCS	 = $(wildcard src/*.c src/*/*.c)
-OBJS	 = $(SRCS:.c=.o)
-OBJS	+= src/banner.o
+# Dynamically generate a file containing the current git commit hash.
+VERFILE = src/version.c
+VERSION = $(shell git rev-parse --short=6 HEAD)
+
+SRCS  = $(filter-out $(VERFILE),$(wildcard src/*.c src/*/*.c))
+SRCS += $(VERFILE)
+OBJS  = $(SRCS:.c=.o)
+OBJS += src/banner.o
 
 .PHONY: clean flash
 
@@ -33,6 +38,9 @@ $(TARGET).elf: $(OBJS)
 
 src/banner.o: src/banner.txt
 	$(OBJCOPY) -I binary -O elf32-avr --rename-section .data=.progmem.data $^ $@
+
+$(VERFILE):
+	echo "const char version[] = \"$(VERSION)\";" > $@
 
 %.o: %.c
 	$(CC) $(CFLAGS) -o $@ -c $^

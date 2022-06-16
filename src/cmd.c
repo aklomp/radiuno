@@ -3,6 +3,7 @@
 
 #include "cmd.h"
 #include "uart.h"
+#include "version.h"
 
 // Forward declaration of the program banner symbols.
 // Logo source:
@@ -129,6 +130,9 @@ banner (void)
 
 		uart_putc(c);
 	}
+
+	// Print the version hash.
+	uart_printf("Version %s\n", version);
 }
 
 void

@@ -2,3 +2,4 @@
 *.hex
 *.map
 *.o
+/src/version.c
